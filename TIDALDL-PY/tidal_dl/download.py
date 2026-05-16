@@ -9,20 +9,60 @@
 @Desc    :
 '''
 
-from concurrent.futures import ThreadPoolExecutor
+import logging
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from decryption import *
-from printf import *
-from tidal import *
+import aigpy
+import requests
+
+from .decryption import *
+from .printf import *
+from .tidal import *
 
 
-def __isSkip__(finalpath, url):
+DOWNLOAD_TIMEOUT = (5, 60)
+DEFAULT_PART_SIZE = 1048576
+TRACK_THREAD_COUNT = 5
+VIDEO_THREAD_COUNT = 8
+
+
+def __removeFile__(path):
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError as e:
+        logging.warning("Unable to remove temporary file %s: %s", path, e)
+
+
+def __ensureParentDir__(path):
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+
+def __remoteSize__(urls):
+    if isinstance(urls, str):
+        urls = [urls]
+
+    total = 0
+    for url in urls or []:
+        size = aigpy.net.getSize(url)
+        if size <= 0:
+            return -1
+        total += size
+    return total
+
+
+def __isSkip__(finalpath, urls):
     if not SETTINGS.checkExist:
         return False
     curSize = aigpy.file.getSize(finalpath)
     if curSize <= 0:
         return False
-    netSize = aigpy.net.getSize(url)
+    netSize = __remoteSize__(urls)
+    if netSize <= 0:
+        return False
     return curSize >= netSize
 
 
@@ -74,10 +114,18 @@ def __setMetaData__(track: Track, album: Album, filepath, contributors, lyrics):
 
 def downloadCover(album):
     if album is None:
-        return
+        return False, "Album is empty."
     path = getAlbumPath(album) + '/cover.jpg'
     url = TIDAL_API.getCoverUrl(album.cover, "1280", "1280")
-    aigpy.net.downloadFile(url, path)
+    if aigpy.string.isNull(url):
+        return False, "Cover URL is empty."
+
+    check, err = aigpy.net.downloadFile(url, path)
+    if not check:
+        msg = str(err)
+        Printf.err(f"DL Cover[{album.title}] failed: {msg}")
+        return False, msg
+    return True, ''
 
 
 def downloadAlbumInfo(album, tracks):
@@ -109,39 +157,51 @@ def downloadAlbumInfo(album, tracks):
 
 
 def downloadVideo(video: Video, album: Album = None, playlist: Playlist = None):
+    title = getattr(video, 'title', None) or str(getattr(video, 'id', 'unknown'))
     try:
         stream = TIDAL_API.getVideoStreamUrl(video.id, SETTINGS.videoQuality)
         path = getVideoPath(video, album, playlist)
+        partPath = path + '.part'
 
         Printf.video(video, stream)
         logging.info("[DL Video] name=" + aigpy.path.getFileName(path) + "\nurl=" + stream.m3u8Url)
 
-        m3u8content = requests.get(stream.m3u8Url).content
-        if m3u8content is None:
-            Printf.err(f"DL Video[{video.title}] getM3u8 failed.{str(e)}")
-            return False, f"GetM3u8 failed.{str(e)}"
+        __ensureParentDir__(path)
+        __removeFile__(partPath)
+
+        response = requests.get(stream.m3u8Url, timeout=DOWNLOAD_TIMEOUT)
+        response.raise_for_status()
+        m3u8content = response.content
+        if not m3u8content:
+            Printf.err(f"DL Video[{title}] getM3u8 failed.")
+            return False, "GetM3u8 failed."
 
         urls = aigpy.m3u8.parseTsUrls(m3u8content)
         if len(urls) <= 0:
-            Printf.err(f"DL Video[{video.title}] getTsUrls failed.{str(e)}")
-            return False, "GetTsUrls failed.{str(e)}"
+            Printf.err(f"DL Video[{title}] getTsUrls failed.")
+            return False, "GetTsUrls failed."
 
-        check, msg = aigpy.m3u8.downloadByTsUrls(urls, path)
+        check, msg = aigpy.m3u8.downloadByTsUrls(urls, partPath, VIDEO_THREAD_COUNT)
         if check:
-            Printf.success(video.title)
-            return True
+            os.replace(partPath, path)
+            Printf.success(title)
+            return True, ''
         else:
-            Printf.err(f"DL Video[{video.title}] failed.{msg}")
+            __removeFile__(partPath)
+            Printf.err(f"DL Video[{title}] failed.{msg}")
             return False, msg
     except Exception as e:
-        Printf.err(f"DL Video[{video.title}] failed.{str(e)}")
+        __removeFile__(locals().get('partPath', ''))
+        Printf.err(f"DL Video[{title}] failed.{str(e)}")
         return False, str(e)
 
 
-def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, partSize=1048576):
+def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, partSize=DEFAULT_PART_SIZE):
+    title = getattr(track, 'title', None) or str(getattr(track, 'id', 'unknown'))
     try:
         stream = TIDAL_API.getStreamUrl(track.id, SETTINGS.audioQuality)
         path = getTrackPath(track, stream, album, playlist)
+        partPath = path + '.part'
 
         if SETTINGS.showTrackInfo and not SETTINGS.multiThread:
             Printf.track(track, stream)
@@ -150,23 +210,27 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
             userProgress.updateStream(stream)
 
         # check exist
-        if __isSkip__(path, stream.url):
+        if __isSkip__(path, stream.urls):
             Printf.success(aigpy.path.getFileName(path) + " (skip:already exists!)")
             return True, ''
 
         # download
         logging.info("[DL Track] name=" + aigpy.path.getFileName(path) + "\nurl=" + stream.url)
 
-        tool = aigpy.download.DownloadTool(path + '.part', stream.urls)
+        __ensureParentDir__(path)
+        __removeFile__(partPath)
+
+        tool = aigpy.download.DownloadTool(partPath, stream.urls)
         tool.setUserProgress(userProgress)
         tool.setPartSize(partSize)
         check, err = tool.start(SETTINGS.showProgress and not SETTINGS.multiThread)
         if not check:
-            Printf.err(f"DL Track '{track.title}' failed: {str(err)}")
+            __removeFile__(partPath)
+            Printf.err(f"DL Track '{title}' failed: {str(err)}")
             return False, str(err)
 
         # encrypted -> decrypt and remove encrypted file
-        __encrypted__(stream, path + '.part', path)
+        __encrypted__(stream, partPath, path)
 
         # contributors
         try:
@@ -184,11 +248,12 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
             lyrics = ''
 
         __setMetaData__(track, album, path, contributors, lyrics)
-        Printf.success(track.title)
+        Printf.success(title)
 
         return True, ''
     except Exception as e:
-        Printf.err(f"DL Track '{track.title}' failed: {str(e)}")
+        __removeFile__(locals().get('partPath', ''))
+        Printf.err(f"DL Track '{title}' failed: {str(e)}")
         return False, str(e)
 
 
@@ -200,23 +265,37 @@ def downloadTracks(tracks, album: Album = None, playlist: Playlist = None):
         return album
 
     if not SETTINGS.multiThread:
+        success = True
         for index, item in enumerate(tracks):
             itemAlbum = album
             if itemAlbum is None:
                 itemAlbum = __getAlbum__(item)
                 item.trackNumberOnPlaylist = index + 1
-            downloadTrack(item, itemAlbum, playlist)
+            check, _ = downloadTrack(item, itemAlbum, playlist)
+            success = success and check
+        return success
     else:
-        thread_pool = ThreadPoolExecutor(max_workers=5)
-        for index, item in enumerate(tracks):
-            itemAlbum = album
-            if itemAlbum is None:
-                itemAlbum = __getAlbum__(item)
-                item.trackNumberOnPlaylist = index + 1
-            thread_pool.submit(downloadTrack, item, itemAlbum, playlist)
-        thread_pool.shutdown(wait=True)
+        futures = []
+        with ThreadPoolExecutor(max_workers=TRACK_THREAD_COUNT) as thread_pool:
+            for index, item in enumerate(tracks):
+                itemAlbum = album
+                if itemAlbum is None:
+                    itemAlbum = __getAlbum__(item)
+                    item.trackNumberOnPlaylist = index + 1
+                futures.append(thread_pool.submit(downloadTrack, item, itemAlbum, playlist))
+
+            success = True
+            for future in as_completed(futures):
+                check, msg = future.result()
+                if not check:
+                    success = False
+                    logging.error("Track download failed: %s", msg)
+            return success
 
 
 def downloadVideos(videos, album: Album, playlist=None):
+    success = True
     for item in videos:
-        downloadVideo(item, album, playlist)
+        check, _ = downloadVideo(item, album, playlist)
+        success = success and check
+    return success

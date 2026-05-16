@@ -3,6 +3,7 @@
 /Dll/AIGS.pdb
 /TIDALDL-PY/tidal-dl.ini
 /TIDALDL-PY/tidal_dl.egg-info
+/TIDALDL-PY/*.egg-info
 /TIDALDL-PY/build
 /TIDALDL-PY/dist
 /TIDALDL-PY/__main__.spec
@@ -10,6 +11,7 @@
 /TIDALDL-PY/exe/Track
 /TIDALDL-PY/exe/Video
 /TIDALDL-PY/exe/tidal-dl.ini
+/TIDALDL-PY/exe
 /TIDALDL-PY/exe/Album
 /TIDALDL-PY/exe/Playlist
 /TIDALDL-UI/obj

@@ -1,3 +1,11 @@
-*.py linguist-language=python
-*.xaml linguist-language=csharp
-*.cs linguist-language=csharp
+* text=auto
+
+*.py text eol=lf linguist-language=python
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+
+*.xaml text eol=crlf linguist-language=csharp
+*.cs text eol=crlf linguist-language=csharp
+*.exe binary

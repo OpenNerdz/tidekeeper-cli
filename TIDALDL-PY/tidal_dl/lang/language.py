@@ -9,28 +9,28 @@
 @Desc    :
 '''
 
-from lang.arabic import LangArabic
-from lang.chinese import LangChinese
-from lang.croatian import LangCroatian
-from lang.czech import LangCzech
-from lang.danish import LangDanish
-from lang.dutch import LangDutch
-from lang.english import LangEnglish
-from lang.filipino import LangFilipino
-from lang.french import LangFrench
-from lang.german import LangGerman
-from lang.hungarian import LangHungarian
-from lang.italian import LangItalian
-from lang.norwegian import LangNorwegian
-from lang.polish import LangPolish
-from lang.portuguese import LangPortuguese
-from lang.russian import LangRussian
-from lang.spanish import LangSpanish
-from lang.turkish import LangTurkish
-from lang.ukrainian import LangUkrainian
-from lang.vietnamese import LangVietnamese
-from lang.korean import LangKorean
-from lang.japanese import LangJapanese
+from .arabic import LangArabic
+from .chinese import LangChinese
+from .croatian import LangCroatian
+from .czech import LangCzech
+from .danish import LangDanish
+from .dutch import LangDutch
+from .english import LangEnglish
+from .filipino import LangFilipino
+from .french import LangFrench
+from .german import LangGerman
+from .hungarian import LangHungarian
+from .italian import LangItalian
+from .norwegian import LangNorwegian
+from .polish import LangPolish
+from .portuguese import LangPortuguese
+from .russian import LangRussian
+from .spanish import LangSpanish
+from .turkish import LangTurkish
+from .ukrainian import LangUkrainian
+from .vietnamese import LangVietnamese
+from .korean import LangKorean
+from .japanese import LangJapanese
 
 _ALL_LANGUAGE_ = [
     ['English', LangEnglish()],

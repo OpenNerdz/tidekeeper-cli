@@ -1,4 +1,5 @@
-cd TIDALDL-PY
-twine upload dist/*
+#!/usr/bin/env bash
+set -euo pipefail
 
-cd ..
+cd TIDALDL-PY
+python -m twine upload dist/*

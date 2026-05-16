@@ -1,0 +1,10 @@
+Tidekeeper CLI
+
+This project is based on Tidal-Media-Downloader:
+https://github.com/yaronzz/Tidal-Media-Downloader
+
+Original project author: YaronH
+Original project license: Apache License 2.0
+
+This fork contains maintenance, packaging, CI, reliability, and documentation
+changes by the Tidekeeper CLI maintainers.

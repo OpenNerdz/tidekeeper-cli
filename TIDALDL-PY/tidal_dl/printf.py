@@ -8,32 +8,31 @@
 @Contact :   yaronhuang@foxmail.com
 @Desc    :
 '''
-from pickle import GLOBAL
 import threading
 import aigpy
 import logging
 import prettytable
 
-import apiKey as apiKey
+from . import apiKey as apiKey
 
-from model import *
-from paths import *
-from settings import *
-from lang.language import *
+from .model import *
+from .paths import *
+from .settings import *
+from .lang.language import *
 
 
-VERSION = '2022.10.31.1'
+VERSION = '2026.5.16'
 __LOGO__ = f'''
- /$$$$$$$$ /$$       /$$           /$$               /$$ /$$
-|__  $$__/|__/      | $$          | $$              | $$| $$
-   | $$    /$$  /$$$$$$$  /$$$$$$ | $$          /$$$$$$$| $$
-   | $$   | $$ /$$__  $$ |____  $$| $$ /$$$$$$ /$$__  $$| $$
-   | $$   | $$| $$  | $$  /$$$$$$$| $$|______/| $$  | $$| $$
-   | $$   | $$| $$  | $$ /$$__  $$| $$        | $$  | $$| $$
-   | $$   | $$|  $$$$$$$|  $$$$$$$| $$        |  $$$$$$$| $$
-   |__/   |__/ \_______/ \_______/|__/         \_______/|__/
+  _______ _     _      _
+ |__   __(_)   | |    | |
+    | |   _  __| | ___| | _____  ___ _ __   ___ _ __
+    | |  | |/ _` |/ _ \\ |/ / _ \\/ _ \\ '_ \\ / _ \\ '__|
+    | |  | | (_| |  __/   <  __/  __/ |_) |  __/ |
+    |_|  |_|\\__,_|\\___|_|\\_\\___|\\___| .__/ \\___|_|
+                                     | |
+                                     |_|
 
-       https://github.com/yaronzz/Tidal-Media-Downloader
+       https://github.com/opennerd-cmyk/tidekeeper-cli
 
                         {VERSION}
 '''
@@ -59,7 +58,7 @@ class Printf(object):
 
     @staticmethod
     def usage():
-        print("=============TIDAL-DL HELP==============")
+        print("============TIDEKEEPER CLI HELP============")
         tb = Printf.__gettable__(["OPTION", "DESC"], [
             ["-h or --help",        "show help-message"],
             ["-v or --version",     "show version"],
@@ -73,7 +72,7 @@ class Printf(object):
 
     @staticmethod
     def checkVersion():
-        onlineVer = aigpy.pip.getLastVersion('tidal-dl')
+        onlineVer = aigpy.pip.getLastVersion('tidekeeper-cli')
         if onlineVer is not None:
             icmp = aigpy.system.cmpVersion(onlineVer, VERSION)
             if icmp > 0:

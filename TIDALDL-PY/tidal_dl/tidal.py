@@ -11,17 +11,19 @@
 import random
 import re
 import time
+import base64
+import json
 from typing import List
 from xml.etree import ElementTree
 
 import requests
 
-from model import *
-from settings import *
+from .model import *
+from .settings import *
 
-# SSL Warnings | retry number
-requests.packages.urllib3.disable_warnings()
+# Retry number
 requests.adapters.DEFAULT_RETRIES = 5
+REQUEST_TIMEOUT = (5, 60)
 
 
 class TidalAPI(object):
@@ -30,14 +32,16 @@ class TidalAPI(object):
         self.apiKey = {'clientId': '7m7Ap0JC9j1cOM3n',
                        'clientSecret': 'vRAdA108tlvkJpTsGZS8rGZ7xTlbJ0qaZ2K9saEzsgY='}
 
-    def __get__(self, path, params={}, urlpre='https://api.tidalhifi.com/v1/'):
+    def __get__(self, path, params=None, urlpre='https://api.tidalhifi.com/v1/'):
         header = {}
         header = {'authorization': f'Bearer {self.key.accessToken}'}
+        params = {} if params is None else dict(params)
         params['countryCode'] = self.key.countryCode
         errmsg = "Get operation err!"
+        respond = None
         for index in range(0, 3):
             try:
-                respond = requests.get(urlpre + path, headers=header, params=params)
+                respond = requests.get(urlpre + path, headers=header, params=params, timeout=REQUEST_TIMEOUT)
                 if respond.url.find("playbackinfopostpaywall") != -1 and SETTINGS.downloadDelay is not False:
                     # random sleep between 0.5 and 5 seconds and print it
                     sleep_time = random.randint(500, 5000) / 1000
@@ -62,12 +66,13 @@ class TidalAPI(object):
                     errmsg += result['userMessage']
                 break
             except Exception as e:
-                if index >= 3:
+                if index == 2 and respond is not None:
                     errmsg += respond.text
 
         raise Exception(errmsg)
 
-    def __getItems__(self, path, params={}):
+    def __getItems__(self, path, params=None):
+        params = {} if params is None else dict(params)
         params['limit'] = 50
         params['offset'] = 0
         total = 0
@@ -88,7 +93,9 @@ class TidalAPI(object):
 
     def __getResolutionList__(self, url):
         ret = []
-        txt = requests.get(url).content.decode('utf-8')
+        response = requests.get(url, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        txt = response.content.decode('utf-8')
         # array = txt.split("#EXT-X-STREAM-INF")
         array = txt.split("#")
         for item in array:
@@ -108,7 +115,7 @@ class TidalAPI(object):
     def __post__(self, path, data, auth=None, urlpre='https://auth.tidal.com/v1/oauth2'):
         for index in range(3):
             try:
-                result = requests.post(urlpre + path, data=data, auth=auth, verify=False).json()
+                result = requests.post(urlpre + path, data=data, auth=auth, timeout=REQUEST_TIMEOUT).json()
                 return result
             except Exception as e:
                 if index == 2:
@@ -155,7 +162,7 @@ class TidalAPI(object):
 
     def verifyAccessToken(self, accessToken) -> bool:
         header = {'authorization': 'Bearer {}'.format(accessToken)}
-        result = requests.get('https://api.tidal.com/v1/sessions', headers=header).json()
+        result = requests.get('https://api.tidal.com/v1/sessions', headers=header, timeout=REQUEST_TIMEOUT).json()
 
         if 'status' in result and result['status'] != 200:
             return False
@@ -182,7 +189,7 @@ class TidalAPI(object):
 
     def loginByAccessToken(self, accessToken, userid=None):
         header = {'authorization': 'Bearer {}'.format(accessToken)}
-        result = requests.get('https://api.tidal.com/v1/sessions', headers=header).json()
+        result = requests.get('https://api.tidal.com/v1/sessions', headers=header, timeout=REQUEST_TIMEOUT).json()
         if 'status' in result and result['status'] != 200:
             raise Exception("Login failed!")
 
@@ -201,7 +208,7 @@ class TidalAPI(object):
 
     def getPlaylist(self, id) -> Playlist:
         return aigpy.model.dictToModel(self.__get__('playlists/' + str(id)), Playlist())
-    
+
     def getPlaylistSelf(self) -> List[Playlist]:
         ret = self.__get__(f'users/{self.key.userId}/playlists')
         playlists = []

@@ -12,8 +12,8 @@ import importlib
 import sys
 import _thread
 
-from events import *
-from printf import *
+from .events import *
+from .printf import *
 
 
 def enableGui():
@@ -221,9 +221,9 @@ else:
             items = []
             for row in rows:
                 items.append(self.s_array[row.row()])
-            
+
             self.__downloadFunc__(items)
-        
+
         def __downloadFunc__(self, items):
             self.c_btnDownload.setEnabled(False)
 

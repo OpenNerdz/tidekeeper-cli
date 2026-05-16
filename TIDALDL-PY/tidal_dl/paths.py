@@ -12,8 +12,8 @@ import os
 import aigpy
 import datetime
 
-from tidal import *
-from settings import *
+from .tidal import *
+from .settings import *
 
 
 def __fixPath__(name: str):

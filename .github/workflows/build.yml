@@ -12,33 +12,39 @@ jobs:
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: pip
+        cache-dependency-path: TIDALDL-PY/requirements.txt
 
     - name: Install dependencies
       shell: bash
       run: |
-        pip3 install wheel
-        pip3 install pyinstaller
-        pip3 install PyQt5
-        pip3 install -r requirements.txt --upgrade
+        python -m pip install --upgrade pip
+        python -m pip install wheel pyinstaller PyQt5
+        python -m pip install -r requirements.txt --upgrade
       working-directory: TIDALDL-PY
 
     - name: Clean directory
       shell: bash
       run: |
         rm -rf dist
-        rm -rf build 
+        rm -rf build
         rm -rf tidal_dl.egg-info
         rm -rf tidal_gui.egg-info
         rm -rf MANIFEST.in
       working-directory: TIDALDL-PY
 
-    - name: Build tidal-dl 
+    - name: Build tidekeeper
       run: |
-        pyinstaller -F tidal_dl/__init__.py -n tidal-dl
-      working-directory: TIDALDL-PY      
+        pyinstaller -F tidal_dl/__main__.py -n tidekeeper
+      working-directory: TIDALDL-PY
 
     # - name: Build tidal-gui-macOs
     #   shell: bash
@@ -65,13 +71,10 @@ jobs:
     #     tar -zcvf tidal-gui.tar.gz tidal-gui
     #     rm -rf tidal-gui
     #   working-directory: TIDALDL-PY/dist
-      
+
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with: 
-        name: tidal-dl-${{ runner.os }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: tidekeeper-${{ runner.os }}
         path: |
           TIDALDL-PY/dist/*
-
-
-

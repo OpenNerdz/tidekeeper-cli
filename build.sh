@@ -1,20 +1,16 @@
-rm -rf dist
-rm -rf build 
-rm -rf __init__.spec
+#!/usr/bin/env bash
+set -euo pipefail
 
 cd TIDALDL-PY
-rm -rf __init__.spec 
-rm -rf dist
-rm -rf build 
-rm -rf exe
-rm -rf MANIFEST.in
-rm -rf *.egg-info
+rm -rf build dist exe MANIFEST.in *.egg-info __init__.spec tidekeeper.spec
 
-python setup.py sdist bdist_wheel
-pyinstaller -F tidal_dl/__init__.py
-mkdir exe
-mv dist/__init__.exe exe/tidal-dl.exe
+python -m pip install --upgrade build pyinstaller
+python -m build
+pyinstaller -F tidal_dl/__main__.py -n tidekeeper
 
-pip uninstall -y tidal-dl
-
-cd ..
+mkdir -p exe
+if [[ -f dist/tidekeeper.exe ]]; then
+  mv dist/tidekeeper.exe exe/tidekeeper.exe
+else
+  mv dist/tidekeeper exe/tidekeeper
+fi

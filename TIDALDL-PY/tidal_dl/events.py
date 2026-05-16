@@ -9,7 +9,7 @@
 @Desc    :
 """
 
-from download import *
+from .download import *
 
 '''
 =================================

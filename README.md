@@ -1,156 +1,148 @@
-<br>
-    <a href="https://github.com/yaronzz/Tidal-Media-Downloader-PRO">[GUI-REPOSITORY]</a>
-<br>
+# Tidekeeper CLI
 
-![Tidal-Media-Downloader](https://socialify.git.ci/yaronzz/Tidal-Media-Downloader/image?description=1&font=Rokkitt&forks=1&issues=1&language=1&name=1&owner=1&pattern=Circuit%20Board&stargazers=1&theme=Dark)
+Tidekeeper CLI is an unofficial maintained fork of
+[yaronzz/Tidal-Media-Downloader](https://github.com/yaronzz/Tidal-Media-Downloader),
+focused on keeping the Python command-line tool installable, testable, and usable
+on current Python versions.
 
+The command-line interface is available as both `tidekeeper` and the compatible
+legacy alias `tidal-dl`.
 
-<div align="center">
-  <h1>Tidal-Media-Downloader</h1>
-  <a href="https://github.com/yaronzz/Tidal-Media-Downloader/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/yaronzz/Tidal-Media-Downloader.svg?style=flat-square" alt="">
-  </a>
-  <a href="https://github.com/yaronzz/Tidal-Media-Downloader/releases">
-    <img src="https://img.shields.io/github/v/release/yaronzz/Tidal-Media-Downloader.svg?style=flat-square" alt="">
-  </a>
-  <a href="https://www.python.org/">
-    <img src="https://img.shields.io/github/issues/yaronzz/Tidal-Media-Downloader.svg?style=flat-square" alt="">
-  </a>
-  <a href="https://github.com/yaronzz/Tidal-Media-Downloader">
-    <img src="https://img.shields.io/github/downloads/yaronzz/Tidal-Media-Downloader/total?label=tidal-gui%20download" alt="">
-  </a>
-  <a href="https://pypi.org/project/tidal-dl/">
-    <img src="https://img.shields.io/pypi/dm/tidal-dl?label=tidal-dl%20download" alt="">
-  </a>
-  <a href="https://github.com/yaronzz/Tidal-Media-Downloader/actions/workflows/build.yml">
-    <img src="https://github.com/yaronzz/Tidal-Media-Downloader/actions/workflows/build.yml/badge.svg" alt="">
-  </a>
-</div>
-<p align="center">
-  «Tidal-Media-Downloader» is an application that lets you download videos and tracks from Tidal. It supports two version: tidal-dl and tidal-gui. (This repository only contains tidal-dl, and the release isn't the newest gui version.)
-    <br>
-        <a href="https://github.com/yaronzz/Tidal-Media-Downloader-PRO/releases">Download</a> |
-        <a href="https://doc.yaronzz.com/post/tidal_dl_installation/">Documentation</a> |
-        <a href="https://doc.yaronzz.com/post/tidal_dl_installation_chn/">中文文档</a> |
-    <br>
-</p>
+[![CI](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/ci.yml)
+[![Build exe](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/build.yml/badge.svg)](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/build.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-## 📺 Installation 
+## Project goals
 
-```shell
-pip3 install tidal-dl --upgrade
+- Maintain the Python CLI fork with modern packaging and CI.
+- Improve reliability around authenticated API requests, partial files, retries,
+  timeouts, and error reporting.
+- Keep compatibility with existing `tidal-dl` workflows where practical.
+- Preserve clear attribution to the upstream Apache-2.0 project.
+
+This fork does not aim to bypass access controls, subscription checks, or DRM.
+
+## Install from GitHub
+
+```bash
+python -m pip install "git+https://github.com/opennerd-cmyk/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
 ```
 
-| USE                                                   | FUNCTION                   |
-| ----------------------------------------------------- | -------------------------- |
-| tidal-dl                                              | Show interactive interface |
-| tidal-dl -h                                           | Show help-message          |
-| tidal-dl -l "https://tidal.com/browse/track/70973230" | Download link              |
-| tidal-dl -g                                           | Show simple-gui            |
+For local development:
 
-If you are using windows system, you can use [tidal-pro](https://github.com/yaronzz/Tidal-Media-Downloader-PRO)
+```bash
+git clone https://github.com/opennerd-cmyk/tidekeeper-cli.git
+cd tidekeeper-cli/TIDALDL-PY
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+```
 
-### Nightly Builds
+## Usage
 
-|Download nightly builds from continuous integration: 	| [![Build Status][Build]][Actions] 
-|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+```bash
+tidekeeper --help
+tidekeeper
+tidekeeper -l "https://tidal.com/browse/track/70973230"
+```
 
-[Actions]: https://github.com/yaronzz/Tidal-Media-Downloader/actions
-[Build]: https://github.com/yaronzz/Tidal-Media-Downloader/workflows/Tidal%20Media%20Downloader/badge.svg
+The legacy command remains available:
 
-## 🤖 Features
-- Download album \ track \ video \ playlist \ artist-albums
+```bash
+tidal-dl --help
+```
 
-- Add metadata to songs
+## Features inherited from upstream
 
-- Selectable video resolution and track quality
+- Download album, track, video, playlist, and artist album entries.
+- Add metadata to downloaded files.
+- Select audio quality and video resolution.
+- Save album information, covers, and optional lyric files.
 
-## 💽 User Interface
-
-<img src="https://i.loli.net/2020/08/19/gqW6zHI1SrKlomC.png" alt="image" style="zoom: 50%;" />
-
-![image-20220708105823257](https://s2.loli.net/2022/07/08/vV6HsxugwoDyGr8.png)
-
-![image-20200806013705425](https://i.loli.net/2020/08/06/sPLowIlCGyOdpVN.png)
-
-## Settings - Possible Tags
+## Format tags
 
 ### Album
 
-| Tag               | Example value                        |
-| ----------------- | ------------------------------------ |
-| {ArtistName}      | The Beatles                          |
-| {AlbumArtistName} | The Beatles                          |
-| {Flag}            | M/A/E  (Master/Dolby Atmos/Explicit) |
-| {AlbumID}         | 55163243                             |
-| {AlbumYear}       | 1963                                 |
-| {AlbumTitle}      | Please Please Me (Remastered)        |
-| {AudioQuality}    | LOSSLESS                             |
-| {DurationSeconds} | 1919                                 |
-| {Duration}        | 31:59                                |
-| {NumberOfTracks}  | 14                                   |
-| {NumberOfVideos}  | 0                                    |
-| {NumberOfVolumes} | 1                                    |
-| {ReleaseDate}     | 1963-03-22                           |
-| {RecordType}      | ALBUM                                |
-| {None}            |                                      |
+| Tag | Example value |
+| --- | --- |
+| `{ArtistName}` | The Beatles |
+| `{AlbumArtistName}` | The Beatles |
+| `{Flag}` | M/A/E |
+| `{AlbumID}` | 55163243 |
+| `{AlbumYear}` | 1963 |
+| `{AlbumTitle}` | Please Please Me (Remastered) |
+| `{AudioQuality}` | LOSSLESS |
+| `{DurationSeconds}` | 1919 |
+| `{Duration}` | 31:59 |
+| `{NumberOfTracks}` | 14 |
+| `{NumberOfVideos}` | 0 |
+| `{NumberOfVolumes}` | 1 |
+| `{ReleaseDate}` | 1963-03-22 |
+| `{RecordType}` | ALBUM |
+| `{None}` | |
 
 ### Track
 
-| Tag               | Example Value                              |
-| ----------------- | ------------------------------------------ |
-| {TrackNumber}     | 01                                         |
-| {ArtistName}      | The Beatles                                |
-| {ArtistsName}     | The Beatles                                |
-| {TrackTitle}      | I Saw Her Standing There (Remastered 2009) |
-| {ExplicitFlag}    | (*Explicit*)                               |
-| {AlbumYear}       | 1963                                       |
-| {AlbumTitle}      | Please Please Me (Remastered)              |
-| {AudioQuality}    | LOSSLESS                                   |
-| {DurationSeconds} | 173                                        |
-| {Duration}        | 02:53                                      |
-| {TrackID}         | 55163244                                   |
+| Tag | Example value |
+| --- | --- |
+| `{TrackNumber}` | 01 |
+| `{ArtistName}` | The Beatles |
+| `{ArtistsName}` | The Beatles |
+| `{TrackTitle}` | I Saw Her Standing There (Remastered 2009) |
+| `{ExplicitFlag}` | (Explicit) |
+| `{AlbumYear}` | 1963 |
+| `{AlbumTitle}` | Please Please Me (Remastered) |
+| `{AudioQuality}` | LOSSLESS |
+| `{DurationSeconds}` | 173 |
+| `{Duration}` | 02:53 |
+| `{TrackID}` | 55163244 |
 
 ### Video
 
-| Tag               | Example Value                              |
-| ----------------- | ------------------------------------------ |
-| {VideoNumber}     | 00                                         |
-| {ArtistName}      | DMX                                        |
-| {ArtistsName}     | DMX, Westside Gunn                         |
-| {VideoTitle}      | Hood Blues                                 |
-| {ExplicitFlag}    | (*Explicit*)                               |
-| {VideoYear}       | 2021                                       |
-| {TrackID}         | 188932980                                  |
+| Tag | Example value |
+| --- | --- |
+| `{VideoNumber}` | 00 |
+| `{ArtistName}` | DMX |
+| `{ArtistsName}` | DMX, Westside Gunn |
+| `{VideoTitle}` | Hood Blues |
+| `{ExplicitFlag}` | (Explicit) |
+| `{VideoYear}` | 2021 |
+| `{VideoID}` | 188932980 |
 
-## ☕ Support
+## Development checks
 
-If you really like my projects and want to support me, you can buy me a coffee and star this project. 
+```bash
+cd TIDALDL-PY
+python -m compileall -q tidal_dl
+python -m tidal_dl --help
+tidekeeper --help
+tidal-dl --help
+```
 
-<a href="https://www.buymeacoffee.com/yaronzz" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/arial-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
+## Build
 
-## 🎂 Contributors
-This project exists thanks to all the people who contribute. 
+```bash
+./build.sh
+```
 
-<a href="https://github.com/yaronzz/Tidal-Media-Downloader/graphs/contributors"><img src="https://contributors-img.web.app/image?repo=yaronzz/Tidal-Media-Downloader" /></a>
+Build outputs are written under `TIDALDL-PY/dist` and `TIDALDL-PY/exe`.
 
-## 🎨 Libraries and reference
+## Upstream attribution
+
+This project is based on `yaronzz/Tidal-Media-Downloader`, originally authored
+by YaronH and contributors. The original project is licensed under Apache-2.0.
+See [NOTICE](NOTICE) and [LICENSE](LICENSE).
+
+Reference projects listed by upstream:
 
 - [aigpy](https://github.com/yaronzz/AIGPY)
 - [python-tidal](https://github.com/tamland/python-tidal)
-- [redsea](https://github.com/redsudo/RedSea)
+- [redsea](https://github.com/RedSudo/RedSea)
 - [tidal-wiki](https://github.com/Fokka-Engineering/TIDAL/wiki)
 
-## 📜 Disclaimer
-- Private use only.
-- Need a Tidal-HIFI subscription. 
-- You should not use this method to distribute or pirate music.
-- It may be illegal to use this in your country, so be informed.
+## Disclaimer
 
-## Developing
-
-```shell
-pip3 uninstall tidal-dl
-pip3 install -r requirements.txt --user
-python3 setup.py install
-```
+This project is unofficial and is not affiliated with, endorsed by, or sponsored
+by TIDAL or Block, Inc. Use it only where you have the right to do so, and follow
+the laws and service terms that apply in your location.
