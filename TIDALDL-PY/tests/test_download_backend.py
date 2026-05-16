@@ -56,6 +56,21 @@ class DownloadBackendTests(unittest.TestCase):
         self.assertTrue(ok, msg)
         self.assertEqual(output_file.read_bytes(), b"first-second-third")
 
+    def test_multi_url_sequential_download_preserves_order(self):
+        (self.source / "000.bin").write_bytes(b"init")
+        (self.source / "001.bin").write_bytes(b"media-one")
+        (self.source / "002.bin").write_bytes(b"media-two")
+        output_file = self.root / "joined-sequential.out"
+
+        ok, msg = download.__downloadUrls__([
+            f"{self.base_url}/000.bin",
+            f"{self.base_url}/001.bin",
+            f"{self.base_url}/002.bin",
+        ], str(output_file), threadNum=1)
+
+        self.assertTrue(ok, msg)
+        self.assertEqual(output_file.read_bytes(), b"initmedia-onemedia-two")
+
 
 if __name__ == "__main__":
     unittest.main()

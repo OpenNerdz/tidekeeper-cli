@@ -177,18 +177,19 @@ def __downloadUrls__(
     if len(urls) == 1 or threadNum <= 1:
         try:
             with open(outputPath, "wb") as output:
-                response = __httpRequest__("GET", urls[0], stream=True, allow_redirects=True)
-                try:
-                    for chunk in response.iter_content(chunk_size=chunkSize):
-                        if not chunk:
-                            continue
-                        output.write(chunk)
-                        size = len(chunk)
-                        if progress is not None:
-                            progress.addCurCount(size)
-                        __addUserProgress__(userProgress, size)
-                finally:
-                    response.close()
+                for url in urls:
+                    response = __httpRequest__("GET", url, stream=True, allow_redirects=True)
+                    try:
+                        for chunk in response.iter_content(chunk_size=chunkSize):
+                            if not chunk:
+                                continue
+                            output.write(chunk)
+                            size = len(chunk)
+                            if progress is not None:
+                                progress.addCurCount(size)
+                            __addUserProgress__(userProgress, size)
+                    finally:
+                        response.close()
             return True, ''
         except Exception as e:
             __removeFile__(outputPath)
