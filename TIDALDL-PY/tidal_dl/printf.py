@@ -12,6 +12,8 @@ import threading
 import aigpy
 import logging
 import prettytable
+import re
+import shutil
 
 from . import apiKey as apiKey
 
@@ -21,8 +23,11 @@ from .settings import *
 from .lang.language import *
 
 
-VERSION = '2026.5.16.4'
+VERSION = '2026.5.16.5'
 PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
+MIN_UI_WIDTH = 78
+MAX_UI_WIDTH = 96
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 print_mutex = threading.Lock()
 
@@ -40,13 +45,79 @@ class Printf(object):
         return "on" if value else "off"
 
     @staticmethod
+    def __status__(value):
+        return aigpy.cmd.green("on") if value else aigpy.cmd.yellow("off")
+
+    @staticmethod
     def __enumName__(value):
         text = str(value)
         return text.rsplit(".", 1)[-1]
 
     @staticmethod
-    def __rule__(char="-", width=72):
-        print(char * width)
+    def __width__():
+        width = shutil.get_terminal_size((MAX_UI_WIDTH, 20)).columns
+        return max(MIN_UI_WIDTH, min(width, MAX_UI_WIDTH))
+
+    @staticmethod
+    def __fit__(text, width):
+        text = str(text)
+        visible = Printf.__visibleLen__(text)
+        if visible <= width:
+            return text
+        text = ANSI_RE.sub("", text)
+        if width <= 3:
+            return text[:width]
+        return text[:width - 3] + "..."
+
+    @staticmethod
+    def __visibleLen__(text):
+        return len(ANSI_RE.sub("", str(text)))
+
+    @staticmethod
+    def __padRight__(text, width):
+        text = str(text)
+        return text + (" " * max(width - Printf.__visibleLen__(text), 0))
+
+    @staticmethod
+    def __boxTop__(title, width):
+        title = f" {title} "
+        remaining = max(width - len(title) - 2, 0)
+        return "+" + title + ("-" * remaining) + "+"
+
+    @staticmethod
+    def __boxBottom__(width):
+        return "+" + ("-" * (width - 2)) + "+"
+
+    @staticmethod
+    def __boxLine__(left, right="", width=None):
+        width = width or Printf.__width__()
+        content_width = width - 4
+        if right:
+            gap = content_width - Printf.__visibleLen__(left) - Printf.__visibleLen__(right)
+            if gap < 2:
+                left = Printf.__fit__(left, content_width - Printf.__visibleLen__(right) - 2)
+                gap = content_width - Printf.__visibleLen__(left) - Printf.__visibleLen__(right)
+            text = left + (" " * gap) + right
+        else:
+            text = Printf.__fit__(left, content_width)
+        return "| " + Printf.__padRight__(text, content_width) + " |"
+
+    @staticmethod
+    def __boxEmpty__(width):
+        return Printf.__boxLine__("", width=width)
+
+    @staticmethod
+    def __printBox__(title, rows):
+        width = Printf.__width__()
+        print(Printf.__boxTop__(title, width))
+        for row in rows:
+            if row is None:
+                print(Printf.__boxEmpty__(width))
+            elif isinstance(row, tuple):
+                print(Printf.__boxLine__(row[0], row[1], width))
+            else:
+                print(Printf.__boxLine__(row, width=width))
+        print(Printf.__boxBottom__(width))
 
     @staticmethod
     def __gettable__(columns, rows):
@@ -117,31 +188,37 @@ class Printf(object):
     @staticmethod
     def dashboard():
         data = SETTINGS
-        account = "signed in" if not aigpy.string.isNull(TOKEN.accessToken) else "not signed in"
+        signed_in = not aigpy.string.isNull(TOKEN.accessToken)
+        account = aigpy.cmd.green("signed in") if signed_in else aigpy.cmd.yellow("not signed in")
         api_key = apiKey.getItem(data.apiKeyIndex)
 
         print("")
-        Printf.__rule__()
-        print(aigpy.cmd.green(f"Tidekeeper CLI {VERSION}"))
-        print(PROJECT_URL)
-        Printf.__rule__()
-        print(f"Account   {account} ({TOKEN.countryCode or 'unknown'})")
-        print(f"Downloads {data.downloadPath}")
-        print(
-            f"Quality   audio {Printf.__enumName__(data.audioQuality)} | "
-            f"video {Printf.__enumName__(data.videoQuality)}"
-        )
-        print(
-            f"Options   progress {Printf.__onOff__(data.showProgress)} | "
-            f"multithread {Printf.__onOff__(data.multiThread)} | "
-            f"covers {Printf.__onOff__(data.saveCovers)}"
-        )
-        print(f"Client    [{data.apiKeyIndex}] {api_key['platform']} - {api_key['formats']}")
-        Printf.__rule__()
-        print("")
-        print("Paste a Tidal URL, ID, or text file path to download.")
-        print("Commands: login, logout, path, quality, settings, client, show, exit")
-        print("Numbers still work: 1 login, 4 path, 5 quality, 6 settings, 0 exit")
+        Printf.__printBox__("Tidekeeper CLI", [
+            (aigpy.cmd.green(f"v{VERSION}"), PROJECT_URL),
+            None,
+            ("Account", f"{account}  region {TOKEN.countryCode or 'unknown'}"),
+            ("Downloads", data.downloadPath),
+        ])
+        Printf.__printBox__("Session", [
+            ("Audio", Printf.__enumName__(data.audioQuality)),
+            ("Video", Printf.__enumName__(data.videoQuality)),
+            ("Client", f"[{data.apiKeyIndex}] {api_key['platform']} - {api_key['formats']}"),
+            (
+                "Flags",
+                "progress {}   multithread {}   covers {}".format(
+                    Printf.__status__(data.showProgress),
+                    Printf.__status__(data.multiThread),
+                    Printf.__status__(data.saveCovers),
+                ),
+            ),
+        ])
+        Printf.__printBox__("Commands", [
+            ("Download", "paste URL, ID, or .txt file path"),
+            ("Account", "login | logout | token"),
+            ("Library", "path | quality | settings | client"),
+            ("Inspect", "show | help | exit"),
+            ("Shortcuts", "1 login | 4 path | 5 quality | 6 settings | 0 exit"),
+        ])
         print("")
 
     @staticmethod

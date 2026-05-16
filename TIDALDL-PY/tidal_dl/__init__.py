@@ -123,7 +123,9 @@ def main():
 
     while True:
         Printf.choices()
-        choice = normalizeChoice(Printf.enter("Paste URL/ID or choose an option:"))
+        choice = normalizeChoice(Printf.enter("tidekeeper > "))
+        if choice == "":
+            continue
         if choice == "0":
             return
         elif choice == "1":
