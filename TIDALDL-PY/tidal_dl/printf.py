@@ -32,7 +32,7 @@ __LOGO__ = f'''
                                      | |
                                      |_|
 
-       https://github.com/opennerd-cmyk/tidekeeper-cli
+       https://github.com/OpenNerdz/tidekeeper-cli
 
                         {VERSION}
 '''

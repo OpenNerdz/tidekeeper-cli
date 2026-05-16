@@ -31,9 +31,9 @@ setup(
     long_description_content_type="text/markdown",
 
     author='Tidekeeper CLI maintainers',
-    url="https://github.com/opennerd-cmyk/tidekeeper-cli",
+    url="https://github.com/OpenNerdz/tidekeeper-cli",
     project_urls={
-        "Source": "https://github.com/opennerd-cmyk/tidekeeper-cli",
+        "Source": "https://github.com/OpenNerdz/tidekeeper-cli",
         "Upstream": "https://github.com/yaronzz/Tidal-Media-Downloader",
     },
 

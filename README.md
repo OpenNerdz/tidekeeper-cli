@@ -8,8 +8,8 @@ on current Python versions.
 The command-line interface is available as both `tidekeeper` and the compatible
 legacy alias `tidal-dl`.
 
-[![CI](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/ci.yml)
-[![Build exe](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/build.yml/badge.svg)](https://github.com/opennerd-cmyk/tidekeeper-cli/actions/workflows/build.yml)
+[![CI](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/ci.yml)
+[![Build exe](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/build.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 ## Project goals
@@ -25,13 +25,13 @@ This fork does not aim to bypass access controls, subscription checks, or DRM.
 ## Install from GitHub
 
 ```bash
-python -m pip install "git+https://github.com/opennerd-cmyk/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
+python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
 ```
 
 For local development:
 
 ```bash
-git clone https://github.com/opennerd-cmyk/tidekeeper-cli.git
+git clone https://github.com/OpenNerdz/tidekeeper-cli.git
 cd tidekeeper-cli/TIDALDL-PY
 python -m venv .venv
 source .venv/bin/activate
