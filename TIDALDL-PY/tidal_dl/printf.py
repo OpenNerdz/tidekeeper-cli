@@ -12,16 +12,18 @@ import threading
 import aigpy
 import logging
 import prettytable
+import shutil
 
 from . import apiKey as apiKey
 
 from .model import *
 from .paths import *
 from .settings import *
+from .environment import isTermux
 from .lang.language import *
 
 
-VERSION = '2026.5.17.1'
+VERSION = '2026.5.17.2'
 PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
 
 print_mutex = threading.Lock()
@@ -56,6 +58,14 @@ class Printf(object):
         return value[:width - 3] + "..."
 
     @staticmethod
+    def __terminalWidth__():
+        return shutil.get_terminal_size((80, 20)).columns
+
+    @staticmethod
+    def __isCompact__():
+        return isTermux() or Printf.__terminalWidth__() < 72
+
+    @staticmethod
     def __gettable__(columns, rows):
         tb = prettytable.PrettyTable()
         tb.field_names = list(aigpy.cmd.green(item) for item in columns)
@@ -68,6 +78,21 @@ class Printf(object):
     def usage():
         Printf.logo()
         print("")
+        if Printf.__isCompact__():
+            rows = [
+                ("-h, --help", "Show help"),
+                ("-v, --version", "Show version"),
+                ("-g, --gui", "Open GUI if available"),
+                ("-l, --link URL", "Download URL/ID/file"),
+                ("-o, --output PATH", "Set save folder"),
+                ("-q, --quality NAME", "Normal, High, HiFi, Master, Max"),
+                ("-r, --resolution NAME", "P1080, P720, P480, P360"),
+            ]
+            for option, description in rows:
+                print(option)
+                print(f"  {description}")
+            return
+
         tb = Printf.__gettable__(["OPTION", "DESCRIPTION"], [
             ["-h, --help", "Show this help"],
             ["-v, --version", "Show version"],
@@ -127,7 +152,8 @@ class Printf(object):
         signed_in = not aigpy.string.isNull(TOKEN.accessToken)
         account = aigpy.cmd.green("signed in") if signed_in else aigpy.cmd.yellow("not signed in")
         region = TOKEN.countryCode or "unknown"
-        path = Printf.__shorten__(data.downloadPath)
+        compact = Printf.__isCompact__()
+        path = Printf.__shorten__(data.downloadPath, 42 if compact else 68)
         audio = Printf.__enumName__(data.audioQuality)
         video = Printf.__enumName__(data.videoQuality)
 
@@ -139,10 +165,22 @@ class Printf(object):
         print("")
         print(aigpy.cmd.green("Download: paste a Tidal URL, ID, or .txt file and press Enter."))
         print("")
-        print("1 Login/refresh   2 Logout        3 Set token")
-        print("4 Save folder     5 Quality       6 Options")
-        print("7 Client          8 Full settings 0 Exit")
-        print("clear/cls Clear screen")
+        if compact:
+            print("1 Login / refresh")
+            print("2 Logout")
+            print("3 Set token")
+            print("4 Save folder")
+            print("5 Quality")
+            print("6 Options")
+            print("7 Client")
+            print("8 Full settings")
+            print("0 Exit")
+            print("clear / cls Clear screen")
+        else:
+            print("1 Login/refresh   2 Logout        3 Set token")
+            print("4 Save folder     5 Quality       6 Options")
+            print("7 Client          8 Full settings 0 Exit")
+            print("clear/cls Clear screen")
         print("")
 
     @staticmethod
