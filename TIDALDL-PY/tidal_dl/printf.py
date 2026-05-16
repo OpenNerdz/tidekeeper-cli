@@ -21,7 +21,7 @@ from .settings import *
 from .lang.language import *
 
 
-VERSION = '2026.5.16'
+VERSION = '2026.5.16.1'
 __LOGO__ = f'''
   _______ _     _      _
  |__   __(_)   | |    | |

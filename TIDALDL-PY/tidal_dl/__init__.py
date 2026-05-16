@@ -99,7 +99,7 @@ def main():
             if not loginByConfig():
                 loginByWeb()
         elif choice == "2":
-            loginByWeb()
+            logout()
         elif choice == "3":
             loginByAccessToken()
         elif choice == "4":

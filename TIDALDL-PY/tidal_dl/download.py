@@ -11,7 +11,10 @@
 
 import logging
 import os
+import shutil
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 import aigpy
 import requests
@@ -25,6 +28,9 @@ DOWNLOAD_TIMEOUT = (5, 60)
 DEFAULT_PART_SIZE = 1048576
 TRACK_THREAD_COUNT = 5
 VIDEO_THREAD_COUNT = 8
+DOWNLOAD_RETRIES = 4
+DOWNLOAD_CHUNK_SIZE = 256 * 1024
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def __removeFile__(path):
@@ -35,10 +41,60 @@ def __removeFile__(path):
         logging.warning("Unable to remove temporary file %s: %s", path, e)
 
 
+def __removeDir__(path):
+    try:
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+    except OSError as e:
+        logging.warning("Unable to remove temporary directory %s: %s", path, e)
+
+
 def __ensureParentDir__(path):
     parent = os.path.dirname(os.path.abspath(path))
     if parent:
         os.makedirs(parent, exist_ok=True)
+
+
+def __retryDelay__(response, attempt):
+    if response is not None and response.headers.get("Retry-After"):
+        try:
+            return min(float(response.headers["Retry-After"]), 60)
+        except ValueError:
+            pass
+    return min(2 ** attempt, 20)
+
+
+def __httpRequest__(method, url, **kwargs):
+    last_error = None
+    for attempt in range(DOWNLOAD_RETRIES):
+        response = None
+        try:
+            response = requests.request(method, url, timeout=DOWNLOAD_TIMEOUT, **kwargs)
+            if response.status_code in RETRYABLE_STATUS_CODES and attempt < DOWNLOAD_RETRIES - 1:
+                response.close()
+                time.sleep(__retryDelay__(response, attempt))
+                continue
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            last_error = e
+            if response is not None:
+                response.close()
+            if attempt < DOWNLOAD_RETRIES - 1:
+                time.sleep(__retryDelay__(response, attempt))
+                continue
+            raise
+    raise last_error
+
+
+def __contentLength__(url):
+    try:
+        response = __httpRequest__("HEAD", url, allow_redirects=True)
+        response.close()
+        length = response.headers.get("Content-Length")
+        return int(length) if length is not None else -1
+    except Exception:
+        return -1
 
 
 def __remoteSize__(urls):
@@ -47,11 +103,131 @@ def __remoteSize__(urls):
 
     total = 0
     for url in urls or []:
-        size = aigpy.net.getSize(url)
+        size = __contentLength__(url)
         if size <= 0:
             return -1
         total += size
     return total
+
+
+def __setUserProgressMax__(userProgress, size):
+    if userProgress is None or size <= 0:
+        return
+    try:
+        userProgress.setMaxNum(size)
+    except Exception:
+        pass
+
+
+def __addUserProgress__(userProgress, size):
+    if userProgress is None or size <= 0:
+        return
+    try:
+        userProgress.addCurNum(size)
+    except Exception:
+        pass
+
+
+def __downloadUrlToPath__(url, path, progress=None, userProgress=None, progressLock=None, chunkSize=DOWNLOAD_CHUNK_SIZE):
+    tempPath = path + '.part'
+    __removeFile__(tempPath)
+    response = __httpRequest__("GET", url, stream=True, allow_redirects=True)
+    try:
+        with open(tempPath, "wb") as output:
+            for chunk in response.iter_content(chunk_size=chunkSize):
+                if not chunk:
+                    continue
+                output.write(chunk)
+                size = len(chunk)
+                if progress is not None:
+                    progress.addCurCount(size)
+                if progressLock is not None:
+                    with progressLock:
+                        __addUserProgress__(userProgress, size)
+                else:
+                    __addUserProgress__(userProgress, size)
+        os.replace(tempPath, path)
+    finally:
+        response.close()
+        __removeFile__(tempPath)
+
+
+def __downloadUrls__(
+        urls,
+        outputPath,
+        showProgress=False,
+        userProgress=None,
+        threadNum=1,
+        chunkSize=DOWNLOAD_CHUNK_SIZE,
+        probeSize=True):
+    urls = [url for url in (urls or []) if not aigpy.string.isNull(url)]
+    if len(urls) <= 0:
+        return False, "URL list is empty."
+
+    __ensureParentDir__(outputPath)
+    __removeFile__(outputPath)
+
+    totalSize = __remoteSize__(urls) if probeSize else -1
+    progress = None
+    if totalSize > 0:
+        __setUserProgressMax__(userProgress, totalSize)
+        if showProgress:
+            progress = aigpy.progress.ProgressTool(totalSize, 15, unit="B")
+
+    if len(urls) == 1 or threadNum <= 1:
+        try:
+            with open(outputPath, "wb") as output:
+                response = __httpRequest__("GET", urls[0], stream=True, allow_redirects=True)
+                try:
+                    for chunk in response.iter_content(chunk_size=chunkSize):
+                        if not chunk:
+                            continue
+                        output.write(chunk)
+                        size = len(chunk)
+                        if progress is not None:
+                            progress.addCurCount(size)
+                        __addUserProgress__(userProgress, size)
+                finally:
+                    response.close()
+            return True, ''
+        except Exception as e:
+            __removeFile__(outputPath)
+            return False, str(e)
+
+    partsDir = outputPath + '.parts'
+    __removeDir__(partsDir)
+    os.makedirs(partsDir, exist_ok=True)
+    progressLock = Lock()
+
+    try:
+        with ThreadPoolExecutor(max_workers=threadNum) as thread_pool:
+            futures = []
+            for index, url in enumerate(urls):
+                partPath = os.path.join(partsDir, f"{index:08d}.part")
+                futures.append(thread_pool.submit(
+                    __downloadUrlToPath__,
+                    url,
+                    partPath,
+                    progress,
+                    userProgress,
+                    progressLock,
+                    chunkSize,
+                ))
+
+            for future in as_completed(futures):
+                future.result()
+
+        with open(outputPath, "wb") as output:
+            for index in range(len(urls)):
+                partPath = os.path.join(partsDir, f"{index:08d}.part")
+                with open(partPath, "rb") as inputFile:
+                    shutil.copyfileobj(inputFile, output)
+        return True, ''
+    except Exception as e:
+        __removeFile__(outputPath)
+        return False, str(e)
+    finally:
+        __removeDir__(partsDir)
 
 
 def __isSkip__(finalpath, urls):
@@ -120,7 +296,7 @@ def downloadCover(album):
     if aigpy.string.isNull(url):
         return False, "Cover URL is empty."
 
-    check, err = aigpy.net.downloadFile(url, path)
+    check, err = __downloadUrls__([url], path, SETTINGS.showProgress, threadNum=1)
     if not check:
         msg = str(err)
         Printf.err(f"DL Cover[{album.title}] failed: {msg}")
@@ -169,19 +345,27 @@ def downloadVideo(video: Video, album: Album = None, playlist: Playlist = None):
         __ensureParentDir__(path)
         __removeFile__(partPath)
 
-        response = requests.get(stream.m3u8Url, timeout=DOWNLOAD_TIMEOUT)
-        response.raise_for_status()
-        m3u8content = response.content
-        if not m3u8content:
-            Printf.err(f"DL Video[{title}] getM3u8 failed.")
-            return False, "GetM3u8 failed."
+        response = __httpRequest__("GET", stream.m3u8Url, allow_redirects=True)
+        try:
+            m3u8content = response.content
+            if not m3u8content:
+                Printf.err(f"DL Video[{title}] getM3u8 failed.")
+                return False, "GetM3u8 failed."
+        finally:
+            response.close()
 
         urls = aigpy.m3u8.parseTsUrls(m3u8content)
         if len(urls) <= 0:
             Printf.err(f"DL Video[{title}] getTsUrls failed.")
             return False, "GetTsUrls failed."
 
-        check, msg = aigpy.m3u8.downloadByTsUrls(urls, partPath, VIDEO_THREAD_COUNT)
+        check, msg = __downloadUrls__(
+            urls,
+            partPath,
+            SETTINGS.showProgress,
+            threadNum=VIDEO_THREAD_COUNT,
+            probeSize=False,
+        )
         if check:
             os.replace(partPath, path)
             Printf.success(title)
@@ -220,10 +404,14 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         __ensureParentDir__(path)
         __removeFile__(partPath)
 
-        tool = aigpy.download.DownloadTool(partPath, stream.urls)
-        tool.setUserProgress(userProgress)
-        tool.setPartSize(partSize)
-        check, err = tool.start(SETTINGS.showProgress and not SETTINGS.multiThread)
+        check, err = __downloadUrls__(
+            stream.urls,
+            partPath,
+            SETTINGS.showProgress and not SETTINGS.multiThread,
+            userProgress,
+            TRACK_THREAD_COUNT if SETTINGS.multiThread else 1,
+            max(int(partSize), 64 * 1024),
+        )
         if not check:
             __removeFile__(partPath)
             Printf.err(f"DL Track '{title}' failed: {str(err)}")

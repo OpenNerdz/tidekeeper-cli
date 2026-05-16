@@ -37,6 +37,9 @@ jobs:
       - name: Compile package
         run: python -m compileall -q tidal_dl
 
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
       - name: Smoke test CLI
         run: |
           python -m tidal_dl --help

@@ -17,6 +17,8 @@ legacy alias `tidal-dl`.
 - Maintain the Python CLI fork with modern packaging and CI.
 - Improve reliability around authenticated API requests, partial files, retries,
   timeouts, and error reporting.
+- Use a maintained download backend with retryable HTTP requests, ordered
+  segment assembly, temporary part files, and local tests.
 - Keep compatibility with existing `tidal-dl` workflows where practical.
 - Preserve clear attribution to the upstream Apache-2.0 project.
 

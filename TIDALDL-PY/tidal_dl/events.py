@@ -291,10 +291,27 @@ def loginByConfig():
             TOKEN.save()
             return True
         else:
-            TokenSettings().save()
+            logout()
             return False
     except Exception as e:
         return False
+
+
+def logout():
+    TOKEN.userid = None
+    TOKEN.countryCode = None
+    TOKEN.accessToken = None
+    TOKEN.refreshToken = None
+    TOKEN.expiresAfter = 0
+    TOKEN.save()
+
+    TIDAL_API.key.userId = None
+    TIDAL_API.key.countryCode = None
+    TIDAL_API.key.accessToken = None
+    TIDAL_API.key.refreshToken = None
+    TIDAL_API.key.expiresIn = None
+    Printf.success("Logged out.")
+    return True
 
 
 def loginByAccessToken():

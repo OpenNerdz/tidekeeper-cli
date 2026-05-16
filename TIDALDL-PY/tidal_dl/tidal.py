@@ -115,8 +115,14 @@ class TidalAPI(object):
     def __post__(self, path, data, auth=None, urlpre='https://auth.tidal.com/v1/oauth2'):
         for index in range(3):
             try:
-                result = requests.post(urlpre + path, data=data, auth=auth, timeout=REQUEST_TIMEOUT).json()
-                return result
+                response = requests.post(urlpre + path, data=data, auth=auth, timeout=REQUEST_TIMEOUT)
+                try:
+                    return response.json()
+                except ValueError:
+                    detail = response.text[:200].replace("\n", " ")
+                    raise Exception(
+                        f"Unexpected HTTP {response.status_code} response from Tidal auth endpoint: {detail}"
+                    )
             except Exception as e:
                 if index == 2:
                     raise e
@@ -126,6 +132,8 @@ class TidalAPI(object):
             'client_id': self.apiKey['clientId'],
             'scope': 'r_usr+w_usr+w_sub'
         }
+        if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
+            data['client_secret'] = self.apiKey['clientSecret']
         result = self.__post__('/device_authorization', data)
         if 'status' in result and result['status'] != 200:
             raise Exception("Device authorization failed. Please choose another apikey.")
@@ -144,10 +152,13 @@ class TidalAPI(object):
             'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
             'scope': 'r_usr+w_usr+w_sub'
         }
-        auth = (self.apiKey['clientId'], self.apiKey['clientSecret'])
-        result = self.__post__('/token', data, auth)
+        if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
+            data['client_secret'] = self.apiKey['clientSecret']
+        result = self.__post__('/token', data)
         if 'status' in result and result['status'] != 200:
             if result['status'] == 400 and result['sub_status'] == 1002:
+                return False
+            elif result.get('error') in ('authorization_pending', 'slow_down'):
                 return False
             else:
                 raise Exception("Error while checking for authorization. Trying again...")
@@ -175,8 +186,9 @@ class TidalAPI(object):
             'grant_type': 'refresh_token',
             'scope': 'r_usr+w_usr+w_sub'
         }
-        auth = (self.apiKey['clientId'], self.apiKey['clientSecret'])
-        result = self.__post__('/token', data, auth)
+        if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
+            data['client_secret'] = self.apiKey['clientSecret']
+        result = self.__post__('/token', data)
         if 'status' in result and result['status'] != 200:
             return False
 
