@@ -22,7 +22,7 @@ def mainCommand():
     try:
         opts, args = getopt.getopt(sys.argv[1:],
                                    "hvgl:o:q:r:",
-                                   ["help", "version", "gui", "link=", "output=", "quality", "resolution"])
+                                   ["help", "version", "gui", "link=", "output=", "quality=", "resolution="])
     except getopt.GetoptError as errmsg:
         Printf.err(vars(errmsg)['msg'] + ". Use 'tidal-dl -h' for usage.")
         return
@@ -70,6 +70,40 @@ def mainCommand():
         Printf.info(LANG.select.SETTING_DOWNLOAD_PATH + ':' + SETTINGS.downloadPath)
         start(link)
 
+
+def normalizeChoice(choice):
+    aliases = {
+        "": "",
+        "q": "0",
+        "quit": "0",
+        "exit": "0",
+        "login": "1",
+        "signin": "1",
+        "sign-in": "1",
+        "refresh": "1",
+        "logout": "2",
+        "signout": "2",
+        "sign-out": "2",
+        "token": "3",
+        "access-token": "3",
+        "path": "4",
+        "paths": "4",
+        "folder": "4",
+        "quality": "5",
+        "options": "6",
+        "settings": "6",
+        "client": "7",
+        "apikey": "7",
+        "api-key": "7",
+        "show": "8",
+        "status": "8",
+        "help": "8",
+        "all": "8",
+    }
+    clean = choice.strip()
+    return aliases.get(clean.lower(), clean)
+
+
 def main():
     SETTINGS.read(getProfilePath())
     TOKEN.read(getTokenPath())
@@ -78,9 +112,6 @@ def main():
     if len(sys.argv) > 1:
         mainCommand()
         return
-
-    Printf.logo()
-    Printf.settings()
 
     if not apiKey.isItemValid(SETTINGS.apiKeyIndex):
         changeApiKey()
@@ -92,7 +123,7 @@ def main():
 
     while True:
         Printf.choices()
-        choice = Printf.enter(LANG.select.PRINT_ENTER_CHOICE)
+        choice = normalizeChoice(Printf.enter("Paste URL/ID or choose an option:"))
         if choice == "0":
             return
         elif choice == "1":
@@ -111,6 +142,8 @@ def main():
         elif choice == "7":
             if changeApiKey():
                 loginByWeb()
+        elif choice == "8":
+            Printf.settings()
         else:
             start(choice)
 

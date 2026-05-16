@@ -21,21 +21,8 @@ from .settings import *
 from .lang.language import *
 
 
-VERSION = '2026.5.16.3'
-__LOGO__ = f'''
-  _______ _     _      _
- |__   __(_)   | |    | |
-    | |   _  __| | ___| | _____  ___ _ __   ___ _ __
-    | |  | |/ _` |/ _ \\ |/ / _ \\/ _ \\ '_ \\ / _ \\ '__|
-    | |  | | (_| |  __/   <  __/  __/ |_) |  __/ |
-    |_|  |_|\\__,_|\\___|_|\\_\\___|\\___| .__/ \\___|_|
-                                     | |
-                                     |_|
-
-       https://github.com/OpenNerdz/tidekeeper-cli
-
-                        {VERSION}
-'''
+VERSION = '2026.5.16.4'
+PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
 
 print_mutex = threading.Lock()
 
@@ -44,8 +31,22 @@ class Printf(object):
 
     @staticmethod
     def logo():
-        print(__LOGO__)
-        logging.info(__LOGO__)
+        text = f"Tidekeeper CLI {VERSION}\n{PROJECT_URL}"
+        print(text)
+        logging.info(text)
+
+    @staticmethod
+    def __onOff__(value):
+        return "on" if value else "off"
+
+    @staticmethod
+    def __enumName__(value):
+        text = str(value)
+        return text.rsplit(".", 1)[-1]
+
+    @staticmethod
+    def __rule__(char="-", width=72):
+        print(char * width)
 
     @staticmethod
     def __gettable__(columns, rows):
@@ -58,16 +59,18 @@ class Printf(object):
 
     @staticmethod
     def usage():
-        print("============TIDEKEEPER CLI HELP============")
-        tb = Printf.__gettable__(["OPTION", "DESC"], [
-            ["-h or --help",        "show help-message"],
-            ["-v or --version",     "show version"],
-            ["-g or --gui",         "show simple-gui"],
-            ["-o or --output",      "download path"],
-            ["-l or --link",        "url/id/filePath"],
-            ["-q or --quality",     "track quality('Normal','High,'HiFi','Master')"],
-            ["-r or --resolution",  "video resolution('P1080', 'P720', 'P480', 'P360')"]
+        Printf.logo()
+        print("")
+        tb = Printf.__gettable__(["OPTION", "DESCRIPTION"], [
+            ["-h, --help", "Show this help"],
+            ["-v, --version", "Show version"],
+            ["-g, --gui", "Open the simple GUI"],
+            ["-l, --link", "Download a Tidal URL, ID, or text file"],
+            ["-o, --output", "Set download path"],
+            ["-q, --quality", "Set audio quality: Normal, High, HiFi, Master, Max"],
+            ["-r, --resolution", "Set video quality: P1080, P720, P480, P360"]
         ])
+        tb.set_style(prettytable.PLAIN_COLUMNS)
         print(tb)
 
     @staticmethod
@@ -112,22 +115,38 @@ class Printf(object):
         print(tb)
 
     @staticmethod
+    def dashboard():
+        data = SETTINGS
+        account = "signed in" if not aigpy.string.isNull(TOKEN.accessToken) else "not signed in"
+        api_key = apiKey.getItem(data.apiKeyIndex)
+
+        print("")
+        Printf.__rule__()
+        print(aigpy.cmd.green(f"Tidekeeper CLI {VERSION}"))
+        print(PROJECT_URL)
+        Printf.__rule__()
+        print(f"Account   {account} ({TOKEN.countryCode or 'unknown'})")
+        print(f"Downloads {data.downloadPath}")
+        print(
+            f"Quality   audio {Printf.__enumName__(data.audioQuality)} | "
+            f"video {Printf.__enumName__(data.videoQuality)}"
+        )
+        print(
+            f"Options   progress {Printf.__onOff__(data.showProgress)} | "
+            f"multithread {Printf.__onOff__(data.multiThread)} | "
+            f"covers {Printf.__onOff__(data.saveCovers)}"
+        )
+        print(f"Client    [{data.apiKeyIndex}] {api_key['platform']} - {api_key['formats']}")
+        Printf.__rule__()
+        print("")
+        print("Paste a Tidal URL, ID, or text file path to download.")
+        print("Commands: login, logout, path, quality, settings, client, show, exit")
+        print("Numbers still work: 1 login, 4 path, 5 quality, 6 settings, 0 exit")
+        print("")
+
+    @staticmethod
     def choices():
-        print("====================================================")
-        tb = Printf.__gettable__([LANG.select.CHOICE, LANG.select.FUNCTION], [
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '0':"), LANG.select.CHOICE_EXIT],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '1':"), LANG.select.CHOICE_LOGIN],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '2':"), LANG.select.CHOICE_LOGOUT],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '3':"), LANG.select.CHOICE_SET_ACCESS_TOKEN],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '4':"), LANG.select.CHOICE_SETTINGS + '-Path'],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '5':"), LANG.select.CHOICE_SETTINGS + '-Quality'],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '6':"), LANG.select.CHOICE_SETTINGS + '-Else'],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER + " '7':"), LANG.select.CHOICE_APIKEY],
-            [aigpy.cmd.green(LANG.select.CHOICE_ENTER_URLID), LANG.select.CHOICE_DOWNLOAD_BY_URL],
-        ])
-        tb.set_style(prettytable.PLAIN_COLUMNS)
-        print(tb)
-        print("====================================================")
+        Printf.dashboard()
 
     @staticmethod
     def enter(string):
