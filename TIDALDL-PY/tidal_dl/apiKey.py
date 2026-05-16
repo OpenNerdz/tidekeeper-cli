@@ -9,11 +9,9 @@
 @Desc    :
 """
 import json
-import requests
-
 __KEYS_JSON__ = '''
 {
-    "version": "1.0.1",
+    "version": "2026.5.16",
     "keys": [
         {
             "platform": "Fire TV",
@@ -48,12 +46,12 @@ __KEYS_JSON__ = '''
             "from": "morguldir (https://github.com/morguldir/python-tidal/commit/50f1afcd2079efb2b4cf694ef5a7d67fdf619d09)"
         },
         {
-            "platform": "Android Auto",
+            "platform": "Tidekeeper OAuth",
             "formats": "Normal/High/HiFi/Master",
-            "clientId": "zU4XHVVkc2tDPo4t",
-            "clientSecret": "VJKhDFqJPqvsPVNBV6ukXTJmwlvbttP7wlMlrc72se4=",
+            "clientId": "fX2JxdmntZWK0ixT",
+            "clientSecret": "1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg=",
             "valid": "True",
-            "from": "1nikolas (https://github.com/yaronzz/Tidal-Media-Downloader/pull/840)"
+            "from": "tidalapi 0.8.11 OAuth client"
         }
     ]
 }
@@ -96,13 +94,3 @@ def getLimitIndexs():
 
 def getVersion():
     return __API_KEYS__['version']
-
-
-# Load from gist
-try:
-    respond = requests.get('https://api.github.com/gists/48d01f5a24b4b7b37f19443977c22cd6')
-    if respond.status_code == 200:
-        content = respond.json()['files']['tidal-api-key.json']['content']
-        __API_KEYS__ = json.loads(content)
-except:
-    pass

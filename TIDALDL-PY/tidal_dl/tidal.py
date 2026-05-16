@@ -29,8 +29,8 @@ REQUEST_TIMEOUT = (5, 60)
 class TidalAPI(object):
     def __init__(self):
         self.key = LoginKey()
-        self.apiKey = {'clientId': '7m7Ap0JC9j1cOM3n',
-                       'clientSecret': 'vRAdA108tlvkJpTsGZS8rGZ7xTlbJ0qaZ2K9saEzsgY='}
+        self.apiKey = {'clientId': 'fX2JxdmntZWK0ixT',
+                       'clientSecret': '1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg='}
 
     def __get__(self, path, params=None, urlpre='https://api.tidalhifi.com/v1/'):
         header = {}
@@ -130,7 +130,7 @@ class TidalAPI(object):
     def getDeviceCode(self) -> str:
         data = {
             'client_id': self.apiKey['clientId'],
-            'scope': 'r_usr+w_usr+w_sub'
+            'scope': 'r_usr w_usr w_sub'
         }
         if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
             data['client_secret'] = self.apiKey['clientSecret']
@@ -150,7 +150,7 @@ class TidalAPI(object):
             'client_id': self.apiKey['clientId'],
             'device_code': self.key.deviceCode,
             'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-            'scope': 'r_usr+w_usr+w_sub'
+            'scope': 'r_usr w_usr w_sub'
         }
         if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
             data['client_secret'] = self.apiKey['clientSecret']
@@ -184,7 +184,7 @@ class TidalAPI(object):
             'client_id': self.apiKey['clientId'],
             'refresh_token': refreshToken,
             'grant_type': 'refresh_token',
-            'scope': 'r_usr+w_usr+w_sub'
+            'scope': 'r_usr w_usr w_sub'
         }
         if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
             data['client_secret'] = self.apiKey['clientSecret']
