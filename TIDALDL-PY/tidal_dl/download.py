@@ -435,7 +435,11 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         except:
             lyrics = ''
 
-        __setMetaData__(track, album, path, contributors, lyrics)
+        try:
+            __setMetaData__(track, album, path, contributors, lyrics)
+        except Exception as e:
+            logging.warning("Unable to write metadata for %s: %s", path, e)
+            Printf.info(f"Downloaded '{title}', but metadata tagging was skipped: {str(e)}")
         Printf.success(title)
 
         return True, ''

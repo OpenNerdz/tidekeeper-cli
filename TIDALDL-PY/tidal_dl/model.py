@@ -6,7 +6,7 @@
 @Author  :   Yaronzz
 @Version :   3.0
 @Contact :   yaronhuang@foxmail.com
-@Desc    :   
+@Desc    :
 '''
 import aigpy
 
@@ -19,6 +19,8 @@ class StreamUrl(aigpy.model.ModelBase):
         self.codec = None
         self.encryptionKey = None
         self.soundQuality = None
+        self.manifestMimeType = None
+        self.container = None
 
 
 class VideoStreamUrl(aigpy.model.ModelBase):

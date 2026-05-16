@@ -390,19 +390,23 @@ class TidalAPI(object):
             ret = StreamUrl()
             ret.trackid = resp.trackid
             ret.soundQuality = resp.audioQuality
+            ret.manifestMimeType = resp.manifestMimeType
             ret.codec = manifest['codecs']
             ret.encryptionKey = manifest['keyId'] if 'keyId' in manifest else ""
             ret.url = manifest['urls'][0]
             ret.urls = [ret.url]
+            ret.container = manifest.get('mimeType', '')
             return ret
         elif "dash+xml" in resp.manifestMimeType:
             xmldata = base64.b64decode(resp.manifest).decode('utf-8')
             ret = StreamUrl()
             ret.trackid = resp.trackid
             ret.soundQuality = resp.audioQuality
+            ret.manifestMimeType = resp.manifestMimeType
             ret.codec = aigpy.string.getSub(xmldata, 'codecs="', '"')
             ret.encryptionKey = ""  # manifest['keyId'] if 'keyId' in manifest else ""
             ret.urls = self.parse_mpd(xmldata)[0]
+            ret.container = "mp4"
             if len(ret.urls) > 0:
                 ret.url = ret.urls[0]
             return ret

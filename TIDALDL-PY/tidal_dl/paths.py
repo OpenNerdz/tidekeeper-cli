@@ -34,13 +34,20 @@ def __getDurationStr__(seconds):
 
 
 def __getExtension__(stream: StreamUrl):
+    container = (stream.container or '').lower()
+    manifestMimeType = (stream.manifestMimeType or '').lower()
+    codec = (stream.codec or '').lower()
+
+    if 'dash+xml' in manifestMimeType or 'mp4' in container:
+        if 'ac4' in codec or 'mha1' in codec:
+            return '.mp4'
+        return '.m4a'
+
     if '.flac' in stream.url:
         return '.flac'
     if '.mp4' in stream.url:
-        if 'ac4' in stream.codec or 'mha1' in stream.codec:
+        if 'ac4' in codec or 'mha1' in codec:
             return '.mp4'
-        elif 'flac' in stream.codec:
-            return '.flac'
         return '.m4a'
     return '.m4a'
 
