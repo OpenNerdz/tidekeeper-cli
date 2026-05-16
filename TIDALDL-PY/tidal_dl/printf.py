@@ -23,7 +23,7 @@ from .environment import isTermux
 from .lang.language import *
 
 
-VERSION = '2026.5.17.2'
+VERSION = '2026.5.17.3'
 PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
 
 print_mutex = threading.Lock()
@@ -350,6 +350,14 @@ class Printf(object):
 
     @staticmethod
     def apikeys(items):
+        if Printf.__isCompact__():
+            print("Tidal clients")
+            for index, item in enumerate(items):
+                valid = "OK" if item["valid"] == "True" else "old"
+                print(f"{index} {valid} - {item['platform']}")
+                print(f"  {item['formats']}")
+            return
+
         print("-------------API-KEYS---------------")
         tb = prettytable.PrettyTable()
         tb.field_names = [aigpy.cmd.green('Index'),

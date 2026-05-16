@@ -32,6 +32,23 @@ class CliUiTests(unittest.TestCase):
         self.assertIn("clear / cls Clear screen", text)
         self.assertNotIn("1 Login/refresh   2 Logout", text)
 
+    def test_compact_api_key_picker_uses_simple_lines(self):
+        items = [
+            {"valid": "False", "platform": "Old", "formats": "Normal/High"},
+            {"valid": "True", "platform": "Tidekeeper OAuth", "formats": "Normal/High/HiFi/Master"},
+        ]
+        output = io.StringIO()
+
+        with mock.patch.object(printf, "isTermux", return_value=True):
+            with redirect_stdout(output):
+                Printf.apikeys(items)
+
+        text = output.getvalue()
+        self.assertIn("Tidal clients", text)
+        self.assertIn("0 old - Old", text)
+        self.assertIn("1 OK - Tidekeeper OAuth", text)
+        self.assertNotIn("+", text)
+
 
 if __name__ == "__main__":
     unittest.main()

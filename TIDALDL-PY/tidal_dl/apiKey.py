@@ -57,6 +57,7 @@ __KEYS_JSON__ = '''
 }
 '''
 __API_KEYS__ = json.loads(__KEYS_JSON__)
+DEFAULT_API_KEY_INDEX = 4
 __ERROR_KEY__ = {
     'platform': 'None',
     'formats': '',
@@ -94,3 +95,12 @@ def getLimitIndexs():
 
 def getVersion():
     return __API_KEYS__['version']
+
+
+def getDefaultIndex():
+    if isItemValid(DEFAULT_API_KEY_INDEX):
+        return DEFAULT_API_KEY_INDEX
+    for index in range(len(__API_KEYS__['keys'])):
+        if isItemValid(index):
+            return index
+    return 0

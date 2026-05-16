@@ -109,16 +109,16 @@ def normalizeChoice(choice):
 def main():
     SETTINGS.read(getProfilePath())
     TOKEN.read(getTokenPath())
+    if not apiKey.isItemValid(SETTINGS.apiKeyIndex):
+        SETTINGS.apiKeyIndex = apiKey.getDefaultIndex()
+        SETTINGS.save()
     TIDAL_API.apiKey = apiKey.getItem(SETTINGS.apiKeyIndex)
 
     if len(sys.argv) > 1:
         mainCommand()
         return
 
-    if not apiKey.isItemValid(SETTINGS.apiKeyIndex):
-        changeApiKey()
-        loginByWeb()
-    elif not loginByConfig():
+    if not loginByConfig():
         loginByWeb()
 
     Printf.checkVersion()
