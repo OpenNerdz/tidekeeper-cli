@@ -14,6 +14,7 @@ import base64
 
 from .lang.language import *
 from .enums import *
+from .environment import getDefaultDownloadPath
 
 
 class Settings(aigpy.model.ModelBase):
@@ -65,6 +66,7 @@ class Settings(aigpy.model.ModelBase):
     def read(self, path):
         self._path_ = path
         txt = aigpy.file.getContent(self._path_)
+        hasSavedSettings = len(txt) > 0
         if len(txt) > 0:
             data = json.loads(txt)
             if aigpy.model.dictToModel(data, self) is None:
@@ -83,6 +85,8 @@ class Settings(aigpy.model.ModelBase):
             self.videoFileFormat = self.getDefaultPathFormat(Type.Video)
         if self.apiKeyIndex is None:
             self.apiKeyIndex = 0
+        if not hasSavedSettings:
+            self.downloadPath = getDefaultDownloadPath()
 
         LANG.setLang(self.language)
 

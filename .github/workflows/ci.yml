@@ -45,3 +45,6 @@ jobs:
           python -m tidal_dl --help
           tidekeeper --help
           tidal-dl --help
+
+      - name: Check Termux install script
+        run: bash -n ../scripts/install-termux.sh

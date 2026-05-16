@@ -21,7 +21,7 @@ from .settings import *
 from .lang.language import *
 
 
-VERSION = '2026.5.16.7'
+VERSION = '2026.5.17.1'
 PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
 
 print_mutex = threading.Lock()

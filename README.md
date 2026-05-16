@@ -30,6 +30,52 @@ This fork does not aim to bypass access controls, subscription checks, or DRM.
 python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
 ```
 
+## Termux
+
+Termux support is provided for the CLI install path. The desktop release
+binaries and GUI are not for Termux.
+
+Install from Termux:
+
+```bash
+pkg update
+pkg install python git ffmpeg clang libxml2 libxslt
+python -m pip install --upgrade pip wheel
+python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
+tidekeeper
+```
+
+Or run the install script from a cloned checkout:
+
+```bash
+git clone https://github.com/OpenNerdz/tidekeeper-cli.git
+cd tidekeeper-cli
+bash scripts/install-termux.sh
+```
+
+Optional: if you want downloads saved to Android shared storage, run:
+
+```bash
+termux-setup-storage
+```
+
+New Termux installs default to a writable folder under Termux home. If
+`termux-setup-storage` has been run and the shared Downloads folder is visible,
+Tidekeeper will prefer:
+
+```text
+/storage/emulated/0/Download/Tidekeeper
+```
+
+You can also override the first-run default with:
+
+```bash
+export TIDEKEEPER_DOWNLOAD_PATH="/storage/emulated/0/Download/Tidekeeper"
+```
+
+If it does not work on your device, create an issue with the full error output
+and the install/runtime failure can be addressed.
+
 For local development:
 
 ```bash
