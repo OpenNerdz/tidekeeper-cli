@@ -21,7 +21,7 @@ from .settings import *
 from .lang.language import *
 
 
-VERSION = '2026.5.16.6'
+VERSION = '2026.5.16.7'
 PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
 
 print_mutex = threading.Lock()
@@ -34,6 +34,10 @@ class Printf(object):
         text = f"Tidekeeper CLI {VERSION}\n{PROJECT_URL}"
         print(text)
         logging.info(text)
+
+    @staticmethod
+    def clearScreen():
+        print("\033[2J\033[H", end="")
 
     @staticmethod
     def __onOff__(value):
@@ -138,6 +142,7 @@ class Printf(object):
         print("1 Login/refresh   2 Logout        3 Set token")
         print("4 Save folder     5 Quality       6 Options")
         print("7 Client          8 Full settings 0 Exit")
+        print("clear/cls Clear screen")
         print("")
 
     @staticmethod

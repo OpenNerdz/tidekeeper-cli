@@ -99,6 +99,8 @@ def normalizeChoice(choice):
         "status": "8",
         "help": "8",
         "all": "8",
+        "clear": "clear",
+        "cls": "clear",
     }
     clean = choice.strip()
     return aliases.get(clean.lower(), clean)
@@ -125,6 +127,9 @@ def main():
         Printf.choices()
         choice = normalizeChoice(Printf.enter("Paste URL or choice > "))
         if choice == "":
+            continue
+        if choice == "clear":
+            Printf.clearScreen()
             continue
         if choice == "0":
             return
