@@ -30,6 +30,12 @@ This fork does not aim to bypass access controls, subscription checks, or DRM.
 python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
 ```
 
+One-command installer for Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
+```
+
 ## Termux
 
 Termux support is provided for the CLI install path. The desktop release
@@ -38,10 +44,7 @@ binaries and GUI are not for Termux.
 Install from Termux:
 
 ```bash
-pkg update
-pkg install python git ffmpeg clang libxml2 libxslt
-python -m pip install --upgrade pip wheel
-python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
+pkg update && pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
 tidekeeper
 ```
 
@@ -50,7 +53,7 @@ Or run the install script from a cloned checkout:
 ```bash
 git clone https://github.com/OpenNerdz/tidekeeper-cli.git
 cd tidekeeper-cli
-bash scripts/install-termux.sh
+bash install.sh
 ```
 
 Optional: if you want downloads saved to Android shared storage, run:

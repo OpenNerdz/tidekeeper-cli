@@ -48,3 +48,6 @@ jobs:
 
       - name: Check Termux install script
         run: bash -n ../scripts/install-termux.sh
+
+      - name: Check installer script
+        run: bash -n ../install.sh
