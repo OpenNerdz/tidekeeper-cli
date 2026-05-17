@@ -44,7 +44,7 @@ binaries and GUI are not for Termux.
 Install from Termux:
 
 ```bash
-pkg update && pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
+pkg update && pkg upgrade -y && pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
 tidekeeper
 ```
 
@@ -76,8 +76,22 @@ You can also override the first-run default with:
 export TIDEKEEPER_DOWNLOAD_PATH="/storage/emulated/0/Download/Tidekeeper"
 ```
 
-If it does not work on your device, create an issue with the full error output
-and the install/runtime failure can be addressed.
+If `ffmpeg` fails in Termux with a message like
+`cannot locate symbol "x265_api_get_216"`, your Termux packages are mismatched.
+Run a full package upgrade and reinstall `ffmpeg`/`x265` before retrying:
+
+```bash
+pkg update
+pkg upgrade -y
+pkg reinstall -y ffmpeg x265
+ffmpeg -version
+```
+
+If `ffmpeg -version` still fails, switch Termux mirrors with
+`termux-change-repo`, then repeat the upgrade/reinstall commands above.
+
+If it does not work on your device after that, create an issue with the full
+error output and the install/runtime failure can be addressed.
 
 For local development:
 

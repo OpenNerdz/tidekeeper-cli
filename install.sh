@@ -26,7 +26,29 @@ run_as_root() {
 
 install_termux_dependencies() {
     pkg update
-    pkg install -y python git ffmpeg clang libxml2 libxslt
+    pkg upgrade -y
+    pkg install -y python git ffmpeg x265 clang libxml2 libxslt
+}
+
+verify_termux_ffmpeg() {
+    if ffmpeg -version >/dev/null 2>&1; then
+        return 0
+    fi
+
+    cat >&2 <<'MSG'
+ffmpeg is installed but cannot run. This usually means Termux has mismatched
+packages, often ffmpeg/libavcodec and x265.
+
+Try:
+  pkg update
+  pkg upgrade -y
+  pkg reinstall -y ffmpeg x265
+  ffmpeg -version
+
+If it still fails, run termux-change-repo to switch mirrors, then repeat the
+upgrade/reinstall commands above.
+MSG
+    exit 1
 }
 
 install_linux_dependencies() {
@@ -121,6 +143,7 @@ MSG
 main() {
     if is_termux; then
         install_termux_dependencies
+        verify_termux_ffmpeg
         install_termux_package
     else
         install_linux_dependencies || {
