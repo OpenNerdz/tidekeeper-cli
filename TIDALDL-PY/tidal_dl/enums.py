@@ -17,6 +17,7 @@ class AudioQuality(Enum):
     HiFi = 2
     Master = 3
     Max = 4
+    Atmos = 5
 
 
 class VideoQuality(Enum):

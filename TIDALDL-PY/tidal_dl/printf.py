@@ -85,7 +85,7 @@ class Printf(object):
                 ("-g, --gui", "Open GUI if available"),
                 ("-l, --link URL", "Download URL/ID/file"),
                 ("-o, --output PATH", "Set save folder"),
-                ("-q, --quality NAME", "Normal, High, HiFi, Master, Max"),
+                ("-q, --quality NAME", "Normal, High, HiFi, Master, Max, Atmos"),
                 ("-r, --resolution NAME", "P1080, P720, P480, P360"),
             ]
             for option, description in rows:
@@ -99,7 +99,7 @@ class Printf(object):
             ["-g, --gui", "Open the simple GUI"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
-            ["-q, --quality", "Set audio quality: Normal, High, HiFi, Master, Max"],
+            ["-q, --quality", "Set audio quality: Normal, High, HiFi, Master, Max, Atmos"],
             ["-r, --resolution", "Set video quality: P1080, P720, P480, P360"]
         ])
         tb.set_style(prettytable.PLAIN_COLUMNS)

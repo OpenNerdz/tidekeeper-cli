@@ -21,6 +21,15 @@ class PathTests(unittest.TestCase):
 
         self.assertEqual(__getExtension__(stream), ".flac")
 
+    def test_atmos_eac3_dash_uses_mp4_extension(self):
+        stream = StreamUrl()
+        stream.url = "https://example.invalid/init.mp4"
+        stream.codec = "ec-3"
+        stream.manifestMimeType = "application/dash+xml"
+        stream.container = "mp4"
+
+        self.assertEqual(__getExtension__(stream), ".mp4")
+
 
 if __name__ == "__main__":
     unittest.main()

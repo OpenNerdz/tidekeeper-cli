@@ -370,7 +370,59 @@ class TidalAPI(object):
                     tracks.append(track_urls)
         return tracks
 
+    def __getOpenApiTrackManifest__(self, id, formats):
+        params = [
+            ('manifestType', 'MPEG_DASH'),
+            ('uriScheme', 'DATA'),
+            ('usage', 'PLAYBACK'),
+            ('adaptive', 'false'),
+        ]
+        for item in formats:
+            params.append(('formats', item))
+
+        response = requests.get(
+            f'https://openapi.tidal.com/v2/trackManifests/{str(id)}',
+            headers={
+                'authorization': f'Bearer {self.key.accessToken}',
+                'Accept': 'application/vnd.api+json',
+            },
+            params=params,
+            timeout=REQUEST_TIMEOUT,
+        )
+        if response.status_code != 200:
+            detail = response.text[:200].replace("\n", " ")
+            raise Exception(f"Track manifest request failed: HTTP {response.status_code} {detail}")
+
+        data = response.json()
+        return data.get('data', {}).get('attributes', {})
+
+    def __getAtmosStreamUrl__(self, id):
+        attrs = self.__getOpenApiTrackManifest__(id, ['EAC3_JOC'])
+        formats = attrs.get('formats') or []
+        if 'EAC3_JOC' not in formats:
+            raise Exception("Dolby Atmos stream is not available for this track.")
+
+        uri = attrs.get('uri') or ''
+        if ',' not in uri:
+            raise Exception("Dolby Atmos manifest is empty.")
+
+        xmldata = base64.b64decode(uri.split(',', 1)[1]).decode('utf-8')
+        ret = StreamUrl()
+        ret.trackid = id
+        ret.soundQuality = 'DOLBY_ATMOS'
+        ret.manifestMimeType = 'application/dash+xml'
+        ret.codec = aigpy.string.getSub(xmldata, 'codecs="', '"')
+        ret.encryptionKey = ''
+        ret.urls = self.parse_mpd(xmldata)[0]
+        ret.container = 'mp4'
+        if len(ret.urls) > 0:
+            ret.url = ret.urls[0]
+        return ret
+
     def getStreamUrl(self, id, quality: AudioQuality):
+        if quality == AudioQuality.Atmos:
+            return self.__getAtmosStreamUrl__(id)
+
         squality = "HI_RES"
         if quality == AudioQuality.Normal:
             squality = "LOW"

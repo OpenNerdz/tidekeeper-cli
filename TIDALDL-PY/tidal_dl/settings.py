@@ -55,6 +55,8 @@ class Settings(aigpy.model.ModelBase):
         for item in AudioQuality:
             if item.name == value:
                 return item
+            if str(value).lower() == item.name.lower():
+                return item
         return AudioQuality.Normal
 
     def getVideoQuality(self, value):

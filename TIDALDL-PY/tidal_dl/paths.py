@@ -39,14 +39,14 @@ def __getExtension__(stream: StreamUrl):
     codec = (stream.codec or '').lower()
 
     if 'dash+xml' in manifestMimeType or 'mp4' in container:
-        if 'ac4' in codec or 'mha1' in codec:
+        if 'ac4' in codec or 'mha1' in codec or 'ec-3' in codec or 'eac3' in codec:
             return '.mp4'
         return '.m4a'
 
     if '.flac' in stream.url:
         return '.flac'
     if '.mp4' in stream.url:
-        if 'ac4' in codec or 'mha1' in codec:
+        if 'ac4' in codec or 'mha1' in codec or 'ec-3' in codec or 'eac3' in codec:
             return '.mp4'
         return '.m4a'
     return '.m4a'
