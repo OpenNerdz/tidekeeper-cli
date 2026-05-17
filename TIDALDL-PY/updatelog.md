@@ -3,11 +3,11 @@ USE  pip3 install tidal-dl --upgrade
 
 #### v2022-10-31
 
-- [X] Add delay setting by @grzekru 
+- [X] Add delay setting by @grzekru
 
 #### v2022-08-29
 
-- [X] Fix #931 
+- [X] Fix #931
 
 #### v2022-07-06
 

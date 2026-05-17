@@ -6,7 +6,7 @@
 @Author  :   PatrykMis
 @Version :   1.0
 @Contact :   patryk.mis@member.fsf.org
-@Desc    :   
+@Desc    :
 '''
 
 

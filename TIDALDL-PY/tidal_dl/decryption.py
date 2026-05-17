@@ -3,7 +3,7 @@
 '''
 @File    :   decryption.py
 @Time    :   2019/02/27
-@Author  :   Yaron Huang 
+@Author  :   Yaron Huang
 @Version :   1.0
 @Contact :   yaronhuang@qq.com
 @Desc    :   HIGH Quality Track Decryption;File From Project 'RedSea'

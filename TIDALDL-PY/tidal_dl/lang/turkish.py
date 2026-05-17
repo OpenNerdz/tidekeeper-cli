@@ -6,7 +6,7 @@
 @Author  :   Gorgeous & shhade for hack & Mutlu ŞEN
 @Version :   1.0
 @Contact :   realmutlusen@gmail.com
-@Desc    :   Yanlış çeviri ya da düzenleme için 'realmutlusen@gmail.com'a mail atabilirsiniz.   
+@Desc    :   Yanlış çeviri ya da düzenleme için 'realmutlusen@gmail.com'a mail atabilirsiniz.
 '''
 
 

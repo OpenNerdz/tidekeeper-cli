@@ -6,7 +6,7 @@
 @Author  :   Yaronzz
 @Version :   3.0
 @Contact :   yaronhuang@foxmail.com
-@Desc    :   
+@Desc    :
 '''
 from enum import Enum
 

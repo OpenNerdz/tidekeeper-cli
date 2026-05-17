@@ -3,10 +3,10 @@
 '''
 @File    :   portuguese.py
 @Time    :   2020/08/19
-@Author  :   BR8N0BL4CK & João 
+@Author  :   BR8N0BL4CK & João
 @Version :   1.0
-@Contact :   
-@Desc    :   
+@Contact :
+@Desc    :
 '''
 
 
