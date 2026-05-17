@@ -1,3 +1,5 @@
+![Tidekeeper CLI](assets/tidekeeper-banner.png)
+
 # Tidekeeper CLI
 
 Tidekeeper CLI is an unofficial maintained fork of
