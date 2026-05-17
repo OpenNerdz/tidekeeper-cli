@@ -1,64 +1,59 @@
 name: Bug Report
-description: Create a bug report to help us improve.
+description: Report a Tidekeeper CLI bug.
 title: "[BUG]: "
 labels: bug
 body:
   - type: markdown
     attributes:
       value: |
-        Please search for this issue in issues-page first. Avoid duplication.
-        Please read Wiki first.
-        https://github.com/yaronzz/Tidal-Media-Downloader/wiki
-  - type: textarea
-    id: which-tool
+        Thanks for reporting a Tidekeeper CLI issue. Please search existing issues first.
+        Redact tokens, cookies, account details, and personal information before posting logs.
+  - type: dropdown
+    id: tool
     attributes:
-      label: Which tool
-      description: Describe which tool has been used.
-      placeholder: |
-        tidal-gui or tidal-dl
+      label: Which command?
+      options:
+        - tidekeeper
+        - tidal-dl
+        - install.sh
+        - Termux install
+        - Other
     validations:
       required: true
-  - type: textarea
+  - type: input
     id: version
     attributes:
-      label: Version
-      description: Describe the version of the tool.
-      placeholder: |
-        eg 2019.12.1.0
+      label: Tidekeeper version or commit
+      placeholder: "Example: latest main / commit SHA / pip version"
     validations:
       required: true
-  - type: textarea
+  - type: input
     id: platform
     attributes:
       label: Platform
-      description: Describe the platform on which the tool has been used.
-      placeholder: |
-        Windows\Linux\Macos\Android
+      placeholder: "Example: Windows 11, Ubuntu 24.04, macOS, Termux on Android 14"
     validations:
       required: true
   - type: textarea
-    id: describe-bug
+    id: steps
     attributes:
-      label: Describe the bug
-      description: Describe the bug as accurately as possible.
-      placeholder: |
-        How to reappear this bug? 
-        Which albumID\trackID\artistID?
-        Please describe in detail.
+      label: Steps to reproduce
+      description: Tell us exactly what you ran.
+      render: bash
     validations:
       required: true
   - type: textarea
-    id: logs
+    id: output
     attributes:
-      label: Relevant log output
-      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
-      render: shell
+      label: Full output / traceback
+      description: Paste the full error output. Redact secrets first.
+      render: text
     validations:
-      required: false
+      required: true
   - type: textarea
-    id: screenshots
+    id: extra
     attributes:
-      label: Add screenshots
-      description: Please add screenshots if available.
+      label: Anything else?
+      description: Add screenshots or extra context if useful.
     validations:
       required: false

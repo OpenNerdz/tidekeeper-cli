@@ -1,34 +1,29 @@
-name: Questions
-description: Question for the tool.
+name: Question
+description: Ask a Tidekeeper CLI question.
 title: "[QUESTION]: "
 labels: question
 body:
   - type: markdown
     attributes:
       value: |
-        Please search for this issue in issues-page first. Avoid duplication.
-        Please read Wiki first.
-        https://github.com/yaronzz/Tidal-Media-Downloader/wiki
-  - type: textarea
-    id: which-tool
+        Please search existing issues first. Redact tokens and account details.
+  - type: dropdown
+    id: topic
     attributes:
-      label: Which tool
-      description: Describe which tool the question is about.
-      placeholder: |
-        tidal-gui or tidal-dl
+      label: Topic
+      options:
+        - Install
+        - Termux
+        - Login/auth
+        - Downloading
+        - Configuration
+        - Other
     validations:
       required: true
   - type: textarea
     id: question
     attributes:
-      label: Describe your question
-      description: Describe your question as accurately as possible.
+      label: Question
+      description: Include relevant command output if applicable.
     validations:
       required: true
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Add screenshots
-      description: Please add screenshots if available.
-    validations:
-      required: false

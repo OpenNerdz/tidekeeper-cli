@@ -1,34 +1,29 @@
 name: Feature Request
-description: Open a feature request to Tidal-Media-Downloader.
+description: Suggest a Tidekeeper CLI improvement.
 title: "[FEATURE]: "
-labels: feature request
+labels: enhancement
 body:
   - type: markdown
     attributes:
       value: |
-        Please search for this issue in issues-page first. Avoid duplication.
-        Please read Wiki first.
-        https://github.com/yaronzz/Tidal-Media-Downloader/wiki
+        Please search existing issues first and keep the request focused.
   - type: textarea
-    id: which-tool
+    id: problem
     attributes:
-      label: Which tool
-      description: Describe for which tool you want a feature to be added.
-      placeholder: |
-        tidal-gui or tidal-dl
+      label: Problem
+      description: What problem would this solve?
     validations:
       required: true
   - type: textarea
-    id: feature
+    id: solution
     attributes:
-      label: Describe the feature
-      description: Describe the feature as accurately as possible.
+      label: Proposed solution
+      description: What should Tidekeeper do?
     validations:
       required: true
   - type: textarea
-    id: screenshots
+    id: extra
     attributes:
-      label: Add screenshots
-      description: Please add screenshots if available.
+      label: Extra context
     validations:
       required: false

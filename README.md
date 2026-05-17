@@ -5,80 +5,58 @@ Tidekeeper CLI is an unofficial maintained fork of
 focused on keeping the Python command-line tool installable, testable, and usable
 on current Python versions.
 
-The command-line interface is available as both `tidekeeper` and the compatible
-legacy alias `tidal-dl`.
+The CLI is available as both `tidekeeper` and the legacy-compatible `tidal-dl`.
 
 [![CI](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/ci.yml)
 [![Build exe](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/build.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-## Project goals
+## Scope
 
 - Maintain the Python CLI fork with modern packaging and CI.
-- Improve reliability around authenticated API requests, partial files, retries,
+- Improve install reliability, authenticated API requests, retries, partial files,
   timeouts, and error reporting.
-- Use a maintained download backend with retryable HTTP requests, ordered
-  segment assembly, temporary part files, and local tests.
 - Keep compatibility with existing `tidal-dl` workflows where practical.
-- Preserve clear attribution to the upstream Apache-2.0 project.
 
-This fork does not aim to bypass access controls, subscription checks, or DRM.
+This project does not aim to bypass access controls, subscription checks, or DRM.
 
-## Install from GitHub
+## Install
 
 ```bash
 python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
 ```
 
-One-command installer for Linux:
+Linux one-command installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
 ```
 
-## Termux
-
-Termux support is provided for the CLI install path. The desktop release
-binaries and GUI are not for Termux.
-
-Install from Termux:
+Then run:
 
 ```bash
-pkg update && pkg upgrade -y && pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
 tidekeeper
 ```
 
-Or run the install script from a cloned checkout:
+## Termux
+
+Termux support is for the CLI install path only.
 
 ```bash
-git clone https://github.com/OpenNerdz/tidekeeper-cli.git
-cd tidekeeper-cli
-bash install.sh
+pkg update && pkg upgrade -y && pkg install -y curl
+curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
+tidekeeper
 ```
 
-Optional: if you want downloads saved to Android shared storage, run:
+To save downloads to Android shared storage:
 
 ```bash
 termux-setup-storage
-```
-
-New Termux installs default to a writable folder under Termux home. If
-`termux-setup-storage` has been run and the shared Downloads folder is visible,
-Tidekeeper will prefer:
-
-```text
-/storage/emulated/0/Download/Tidekeeper
-```
-
-You can also override the first-run default with:
-
-```bash
 export TIDEKEEPER_DOWNLOAD_PATH="/storage/emulated/0/Download/Tidekeeper"
 ```
 
-If `ffmpeg` fails in Termux with a message like
-`cannot locate symbol "x265_api_get_216"`, your Termux packages are mismatched.
-Run a full package upgrade and reinstall `ffmpeg`/`x265` before retrying:
+If `ffmpeg` fails with `cannot locate symbol "x265_api_get_216"`, your Termux
+packages are mismatched. Run:
 
 ```bash
 pkg update
@@ -87,22 +65,8 @@ pkg reinstall -y ffmpeg x265
 ffmpeg -version
 ```
 
-If `ffmpeg -version` still fails, switch Termux mirrors with
-`termux-change-repo`, then repeat the upgrade/reinstall commands above.
-
-If it does not work on your device after that, create an issue with the full
-error output and the install/runtime failure can be addressed.
-
-For local development:
-
-```bash
-git clone https://github.com/OpenNerdz/tidekeeper-cli.git
-cd tidekeeper-cli/TIDALDL-PY
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
-```
+If it still fails, run `termux-change-repo`, switch mirrors, then repeat the
+commands above.
 
 ## Usage
 
@@ -112,77 +76,23 @@ tidekeeper
 tidekeeper -l "https://tidal.com/browse/track/70973230"
 ```
 
-The legacy command remains available:
+Legacy command:
 
 ```bash
 tidal-dl --help
 ```
 
-## Features inherited from upstream
-
-- Download album, track, video, playlist, and artist album entries.
-- Add metadata to downloaded files.
-- Select audio quality and video resolution.
-- Save album information, covers, and optional lyric files.
-
-## Format tags
-
-### Album
-
-| Tag | Example value |
-| --- | --- |
-| `{ArtistName}` | The Beatles |
-| `{AlbumArtistName}` | The Beatles |
-| `{Flag}` | M/A/E |
-| `{AlbumID}` | 55163243 |
-| `{AlbumYear}` | 1963 |
-| `{AlbumTitle}` | Please Please Me (Remastered) |
-| `{AudioQuality}` | LOSSLESS |
-| `{DurationSeconds}` | 1919 |
-| `{Duration}` | 31:59 |
-| `{NumberOfTracks}` | 14 |
-| `{NumberOfVideos}` | 0 |
-| `{NumberOfVolumes}` | 1 |
-| `{ReleaseDate}` | 1963-03-22 |
-| `{RecordType}` | ALBUM |
-| `{None}` | |
-
-### Track
-
-| Tag | Example value |
-| --- | --- |
-| `{TrackNumber}` | 01 |
-| `{ArtistName}` | The Beatles |
-| `{ArtistsName}` | The Beatles |
-| `{TrackTitle}` | I Saw Her Standing There (Remastered 2009) |
-| `{ExplicitFlag}` | (Explicit) |
-| `{AlbumYear}` | 1963 |
-| `{AlbumTitle}` | Please Please Me (Remastered) |
-| `{AudioQuality}` | LOSSLESS |
-| `{DurationSeconds}` | 173 |
-| `{Duration}` | 02:53 |
-| `{TrackID}` | 55163244 |
-
-### Video
-
-| Tag | Example value |
-| --- | --- |
-| `{VideoNumber}` | 00 |
-| `{ArtistName}` | DMX |
-| `{ArtistsName}` | DMX, Westside Gunn |
-| `{VideoTitle}` | Hood Blues |
-| `{ExplicitFlag}` | (Explicit) |
-| `{VideoYear}` | 2021 |
-| `{VideoID}` | 188932980 |
-
-## Development checks
+## Development
 
 ```bash
-cd TIDALDL-PY
+git clone https://github.com/OpenNerdz/tidekeeper-cli.git
+cd tidekeeper-cli/TIDALDL-PY
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
 python -m compileall -q tidal_dl
-python -m tidal_dl --help
-tidekeeper --help
-tidal-dl --help
+python -m unittest discover -s tests
 ```
 
 ## Build
@@ -193,18 +103,11 @@ tidal-dl --help
 
 Build outputs are written under `TIDALDL-PY/dist` and `TIDALDL-PY/exe`.
 
-## Upstream attribution
+## Attribution
 
 This project is based on `yaronzz/Tidal-Media-Downloader`, originally authored
 by YaronH and contributors. The original project is licensed under Apache-2.0.
 See [NOTICE](NOTICE) and [LICENSE](LICENSE).
-
-Reference projects listed by upstream:
-
-- [aigpy](https://github.com/yaronzz/AIGPY)
-- [python-tidal](https://github.com/tamland/python-tidal)
-- [redsea](https://github.com/RedSudo/RedSea)
-- [tidal-wiki](https://github.com/Fokka-Engineering/TIDAL/wiki)
 
 ## Disclaimer
 
