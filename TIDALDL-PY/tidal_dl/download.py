@@ -252,6 +252,44 @@ def __encrypted__(stream, srcPath, descPath):
         os.remove(srcPath)
 
 
+def __lyricsText__(value):
+    if value is None:
+        return ''
+    text = str(value)
+    return text if text.strip() else ''
+
+
+def __lyricsPayload__(lyricsData):
+    if lyricsData is None:
+        return '', '', ''
+
+    subtitles = __lyricsText__(getattr(lyricsData, 'subtitles', None))
+    lyrics = __lyricsText__(getattr(lyricsData, 'lyrics', None))
+    metadataLyrics = lyrics or subtitles
+
+    if subtitles:
+        return metadataLyrics, subtitles, '.lrc'
+    if lyrics:
+        return metadataLyrics, lyrics, '.txt'
+    return '', '', ''
+
+
+def __writeLyricsFile__(trackPath, lyricsData):
+    metadataLyrics, fileLyrics, extension = __lyricsPayload__(lyricsData)
+    if SETTINGS.lyricFile and fileLyrics:
+        lyricPath = trackPath.rsplit(".", 1)[0] + extension
+        aigpy.file.write(lyricPath, fileLyrics, 'w')
+    return metadataLyrics
+
+
+def __saveLyricsForTrack__(trackId, trackPath):
+    try:
+        return __writeLyricsFile__(trackPath, TIDAL_API.getLyrics(trackId))
+    except Exception as e:
+        logging.info("Unable to save lyrics for track %s: %s", trackId, e)
+        return ''
+
+
 def __parseContributors__(roleType, Contributors):
     if Contributors is None:
         return None
@@ -396,6 +434,8 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
 
         # check exist
         if __isSkip__(path, stream.urls):
+            if SETTINGS.lyricFile:
+                __saveLyricsForTrack__(track.id, path)
             Printf.success(aigpy.path.getFileName(path) + " (skip:already exists!)")
             return True, ''
 
@@ -427,14 +467,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         except:
             contributors = None
 
-        # lyrics
-        try:
-            lyrics = TIDAL_API.getLyrics(track.id).subtitles
-            if SETTINGS.lyricFile:
-                lrcPath = path.rsplit(".", 1)[0] + '.lrc'
-                aigpy.file.write(lrcPath, lyrics, 'w')
-        except:
-            lyrics = ''
+        lyrics = __saveLyricsForTrack__(track.id, path)
 
         try:
             __setMetaData__(track, album, path, contributors, lyrics)

@@ -284,7 +284,7 @@ class TidalAPI(object):
         return []
 
     def getLyrics(self, id) -> Lyrics:
-        data = self.__get__(f'tracks/{str(id)}/lyrics', urlpre='https://listen.tidal.com/v1/')
+        data = self.__get__(f'tracks/{str(id)}/lyrics', urlpre='https://api.tidal.com/v1/')
         return aigpy.model.dictToModel(data, Lyrics())
 
     def getItems(self, id, type: Type):
