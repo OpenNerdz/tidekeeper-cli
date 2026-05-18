@@ -31,6 +31,8 @@ VIDEO_THREAD_COUNT = 8
 DOWNLOAD_RETRIES = 4
 DOWNLOAD_CHUNK_SIZE = 256 * 1024
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+FAILED_TRACKS_FILE = "failed-tracks.txt"
+failed_track_log_lock = Lock()
 
 
 def __removeFile__(path):
@@ -47,6 +49,52 @@ def __removeDir__(path):
             shutil.rmtree(path)
     except OSError as e:
         logging.warning("Unable to remove temporary directory %s: %s", path, e)
+
+
+def __failedTrackLogPath__():
+    return os.path.join(SETTINGS.downloadPath or ".", FAILED_TRACKS_FILE)
+
+
+def __tidalTrackUrl__(track):
+    return f"https://tidal.com/browse/track/{getattr(track, 'id', '')}"
+
+
+def __oneLine__(value):
+    return " ".join(str(value).split())
+
+
+def __logFailedTrack__(track, album=None, playlist=None, reason=""):
+    track_id = getattr(track, 'id', None)
+    if track_id is None:
+        return
+
+    try:
+        path = __failedTrackLogPath__()
+        __ensureParentDir__(path)
+        context = []
+        album_title = getattr(album, 'title', None)
+        playlist_title = getattr(playlist, 'title', None)
+        if album_title:
+            context.append(f"album={__oneLine__(album_title)}")
+        if playlist_title:
+            context.append(f"playlist={__oneLine__(playlist_title)}")
+
+        title = getattr(track, 'title', None) or str(track_id)
+        parts = [
+            time.strftime("%Y-%m-%d %H:%M:%S"),
+            f"track={__oneLine__(title)}",
+            f"id={track_id}",
+        ]
+        parts.extend(context)
+        if reason:
+            parts.append(f"reason={__oneLine__(reason)}")
+        entry = "# " + " | ".join(parts) + "\n" + __tidalTrackUrl__(track) + "\n"
+
+        with failed_track_log_lock:
+            with open(path, "a", encoding="utf-8") as output:
+                output.write(entry)
+    except Exception as e:
+        logging.warning("Unable to log failed track %s: %s", track_id, e)
 
 
 def __ensureParentDir__(path):
@@ -455,6 +503,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         )
         if not check:
             __removeFile__(partPath)
+            __logFailedTrack__(track, album, playlist, err)
             Printf.err(f"DL Track '{title}' failed: {str(err)}")
             return False, str(err)
 
@@ -479,6 +528,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         return True, ''
     except Exception as e:
         __removeFile__(locals().get('partPath', ''))
+        __logFailedTrack__(track, album, playlist, e)
         Printf.err(f"DL Track '{title}' failed: {str(e)}")
         return False, str(e)
 

@@ -78,6 +78,29 @@ tidekeeper
 tidekeeper -l "https://tidal.com/browse/track/70973230"
 ```
 
+Dolby Atmos downloads are opt-in:
+
+```bash
+tidekeeper -q Atmos
+tidekeeper -l "https://tidal.com/browse/album/123456"
+```
+
+When an Atmos stream is downloaded, the default track filename gets a
+`[Dolby Atmos]` suffix. Custom track filename formats can also use
+`{StreamQuality}` and `{Codec}`, for example:
+
+```text
+{TrackNumber} - {ArtistName} - {TrackTitle} [{StreamQuality}] [{Codec}]
+```
+
+If a track download fails, Tidekeeper appends it to `failed-tracks.txt` in the
+download folder. The file keeps comments with the title and reason, followed by
+a plain TIDAL track URL. Retry those tracks later with:
+
+```bash
+tidekeeper -l "/path/to/downloads/failed-tracks.txt"
+```
+
 Legacy command:
 
 ```bash
