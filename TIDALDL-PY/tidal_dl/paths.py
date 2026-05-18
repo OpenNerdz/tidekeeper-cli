@@ -70,7 +70,7 @@ def getAlbumPath(album):
     # retpath
     retpath = SETTINGS.albumFolderFormat
     if retpath is None or len(retpath) <= 0:
-        retpath = SETTINGS.getDefaultAlbumFolderFormat()
+        retpath = SETTINGS.getDefaultPathFormat(Type.Album)
     retpath = retpath.replace(R"{ArtistName}", artistName)
     retpath = retpath.replace(R"{AlbumArtistName}", albumArtistName)
     retpath = retpath.replace(R"{Flag}", flag)
@@ -95,7 +95,7 @@ def getPlaylistPath(playlist):
     # retpath
     retpath = SETTINGS.playlistFolderFormat
     if retpath is None or len(retpath) <= 0:
-        retpath = SETTINGS.getDefaultPlaylistFolderFormat()
+        retpath = SETTINGS.getDefaultPathFormat(Type.Playlist)
     retpath = retpath.replace(R"{PlaylistUUID}", str(playlist.uuid))
     retpath = retpath.replace(R"{PlaylistName}", playlistName)
     return f"{SETTINGS.downloadPath}/{retpath}"
@@ -134,7 +134,7 @@ def getTrackPath(track, stream, album=None, playlist=None):
 
     retpath = SETTINGS.trackFileFormat
     if retpath is None or len(retpath) <= 0:
-        retpath = SETTINGS.getDefaultTrackFileFormat()
+        retpath = SETTINGS.getDefaultPathFormat(Type.Track)
     retpath = retpath.replace(R"{TrackNumber}", number)
     retpath = retpath.replace(R"{ArtistName}", artist)
     retpath = retpath.replace(R"{ArtistsName}", artists)
@@ -154,7 +154,7 @@ def getVideoPath(video, album=None, playlist=None):
     base = SETTINGS.downloadPath + '/Video/'
     if album is not None and album.title is not None:
         base = getAlbumPath(album)
-    elif playlist is not None:
+    elif playlist is not None and SETTINGS.usePlaylistFolder:
         base = getPlaylistPath(playlist)
 
     # get number
@@ -174,7 +174,7 @@ def getVideoPath(video, album=None, playlist=None):
 
     retpath = SETTINGS.videoFileFormat
     if retpath is None or len(retpath) <= 0:
-        retpath = SETTINGS.getDefaultVideoFileFormat()
+        retpath = SETTINGS.getDefaultPathFormat(Type.Video)
     retpath = retpath.replace(R"{VideoNumber}", number)
     retpath = retpath.replace(R"{ArtistName}", artist)
     retpath = retpath.replace(R"{ArtistsName}", artists)

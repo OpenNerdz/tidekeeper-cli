@@ -287,6 +287,7 @@ def loginByConfig():
             TOKEN.userid = TIDAL_API.key.userId
             TOKEN.countryCode = TIDAL_API.key.countryCode
             TOKEN.accessToken = TIDAL_API.key.accessToken
+            TOKEN.refreshToken = TIDAL_API.key.refreshToken
             TOKEN.expiresAfter = time.time() + int(TIDAL_API.key.expiresIn)
             TOKEN.save()
             return True
@@ -332,6 +333,7 @@ def loginByAccessToken():
 
     TOKEN.accessToken = token
     TOKEN.refreshToken = refreshToken
+    TOKEN.userid = TIDAL_API.key.userId
     TOKEN.expiresAfter = 0
     TOKEN.countryCode = TIDAL_API.key.countryCode
     TOKEN.save()

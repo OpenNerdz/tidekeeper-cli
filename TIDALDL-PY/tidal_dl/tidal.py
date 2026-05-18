@@ -155,8 +155,10 @@ class TidalAPI(object):
         if not aigpy.string.isNull(self.apiKey.get('clientSecret')):
             data['client_secret'] = self.apiKey['clientSecret']
         result = self.__post__('/token', data)
+        if result.get('error') in ('authorization_pending', 'slow_down'):
+            return False
         if 'status' in result and result['status'] != 200:
-            if result['status'] == 400 and result['sub_status'] == 1002:
+            if result['status'] == 400 and result.get('sub_status') == 1002:
                 return False
             elif result.get('error') in ('authorization_pending', 'slow_down'):
                 return False
@@ -196,6 +198,7 @@ class TidalAPI(object):
         self.key.userId = result['user']['userId']
         self.key.countryCode = result['user']['countryCode']
         self.key.accessToken = result['access_token']
+        self.key.refreshToken = result.get('refresh_token', refreshToken)
         self.key.expiresIn = result['expires_in']
         return True
 
@@ -302,7 +305,7 @@ class TidalAPI(object):
         for item in data:
             if item['type'] == 'track' and item['item']['streamReady']:
                 tracks.append(aigpy.model.dictToModel(item['item'], Track()))
-            else:
+            elif item['type'] == 'video':
                 videos.append(aigpy.model.dictToModel(item['item'], Video()))
         return tracks, videos
 
@@ -495,7 +498,7 @@ class TidalAPI(object):
     def getCoverData(self, sid, width="320", height="320"):
         url = self.getCoverUrl(sid, width, height)
         try:
-            return requests.get(url).content
+            return requests.get(url, timeout=REQUEST_TIMEOUT).content
         except:
             return ''
 
@@ -510,7 +513,7 @@ class TidalAPI(object):
         if type == Type.Album or type == Type.Track:
             if data.audioQuality == "HI_RES":
                 master = True
-            if type == Type.Album and "DOLBY_ATMOS" in data.audioModes:
+            if type == Type.Album and "DOLBY_ATMOS" in (data.audioModes or []):
                 atmos = True
             if data.explicit is True:
                 explicit = True

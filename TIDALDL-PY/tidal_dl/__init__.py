@@ -65,8 +65,8 @@ def mainCommand():
         return
 
     if link is not None:
-        if not loginByConfig():
-            loginByWeb()
+        if not loginByConfig() and not loginByWeb():
+            return
         Printf.info(LANG.select.SETTING_DOWNLOAD_PATH + ':' + SETTINGS.downloadPath)
         start(link)
 

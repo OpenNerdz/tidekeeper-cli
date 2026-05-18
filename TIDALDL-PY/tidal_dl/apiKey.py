@@ -64,7 +64,7 @@ __ERROR_KEY__ = {
     'clientId': '',
     'clientSecret': '',
                     'valid': 'False',
-},
+}
 
 
 def getNum():
