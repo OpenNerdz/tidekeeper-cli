@@ -11,6 +11,7 @@
 import json
 import aigpy
 import base64
+import os
 
 from .lang.language import *
 from .enums import *
@@ -130,7 +131,19 @@ class TokenSettings(aigpy.model.ModelBase):
     def save(self):
         data = aigpy.model.modelToDict(self)
         txt = json.dumps(data)
-        aigpy.file.write(self._path_, self.__encode__(txt), 'wb')
+        encoded = self.__encode__(txt)
+        parent = os.path.dirname(os.path.abspath(self._path_))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        fd = os.open(self._path_, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, 'wb') as output:
+                output.write(encoded)
+        finally:
+            try:
+                os.chmod(self._path_, 0o600)
+            except OSError:
+                pass
 
 
 # Singleton

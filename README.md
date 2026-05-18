@@ -109,6 +109,9 @@ tidal-dl --help
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request guidelines and the
+expected local checks. See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ```bash
 git clone https://github.com/OpenNerdz/tidekeeper-cli.git
 cd tidekeeper-cli/TIDALDL-PY
@@ -139,3 +142,8 @@ See [NOTICE](NOTICE) and [LICENSE](LICENSE).
 This project is unofficial and is not affiliated with, endorsed by, or sponsored
 by TIDAL or Block, Inc. Use it only where you have the right to do so, and follow
 the laws and service terms that apply in your location.
+
+## Security
+
+Please report security-sensitive issues privately and redact tokens from logs.
+See [SECURITY.md](SECURITY.md) for details.

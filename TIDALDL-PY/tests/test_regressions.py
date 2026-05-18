@@ -318,6 +318,35 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             finally:
                 download.SETTINGS.downloadPath = old_download_path
 
+    def test_tidal_url_parser_ignores_query_strings_and_fragments(self):
+        api = TidalAPI()
+
+        etype, sid = api.parseUrl("https://tidal.com/browse/track/70973230?u=1#play")
+
+        self.assertEqual(etype, Type.Track)
+        self.assertEqual(sid, "70973230")
+
+    def test_tidal_url_parser_handles_nested_paths(self):
+        api = TidalAPI()
+
+        etype, sid = api.parseUrl("https://tidal.com/browse/album/123/track/456")
+
+        self.assertEqual(etype, Type.Track)
+        self.assertEqual(sid, "456")
+
+    @unittest.skipIf(sys.platform.startswith("win"), "POSIX file mode check")
+    def test_token_save_restricts_file_permissions(self):
+        token = events.TokenSettings()
+        token.accessToken = "access"
+        token.refreshToken = "refresh"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            token.read(str(Path(temp_dir) / "token.json"))
+            token.save()
+
+            mode = Path(token._path_).stat().st_mode & 0o777
+
+        self.assertEqual(mode, 0o600)
+
 
 if __name__ == "__main__":
     unittest.main()

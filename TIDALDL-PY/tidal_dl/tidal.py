@@ -15,6 +15,7 @@ import base64
 import json
 from typing import List
 from xml.etree import ElementTree
+from urllib.parse import unquote, urlparse
 
 import requests
 
@@ -535,11 +536,14 @@ class TidalAPI(object):
         if "tidal.com" not in url:
             return Type.Null, url
 
-        url = url.lower()
-        for index, item in enumerate(Type):
-            if item.name.lower() in url:
-                etype = item
-                return etype, aigpy.string.getSub(url, etype.name.lower() + '/', '/')
+        parsed = urlparse(url)
+        path_parts = [unquote(part) for part in parsed.path.split('/') if part]
+        lowered = [part.lower() for part in path_parts]
+        type_by_name = {item.name.lower(): item for item in Type if item != Type.Null}
+        for index in range(len(lowered) - 2, -1, -1):
+            item = type_by_name.get(lowered[index])
+            if item is not None:
+                return item, path_parts[index + 1]
         return Type.Null, url
 
     def getByString(self, string):

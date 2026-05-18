@@ -23,7 +23,7 @@ from .environment import isTermux
 from .lang.language import *
 
 
-VERSION = '2026.5.17.3'
+VERSION = '2026.5.17.4'
 PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
 
 print_mutex = threading.Lock()
