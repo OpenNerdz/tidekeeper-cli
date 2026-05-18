@@ -1,10 +1,12 @@
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
 import tidal_dl
-from tidal_dl import apiKey, events, paths
+from tidal_dl import apiKey, download, events, paths
 from tidal_dl.enums import AudioQuality, Type, VideoQuality
 from tidal_dl.model import StreamUrl
 from tidal_dl.tidal import TidalAPI
@@ -71,9 +73,11 @@ class CliAuthPathRegressionTests(unittest.TestCase):
     def _stream(self):
         stream = StreamUrl()
         stream.url = "https://example.invalid/audio.m4a"
+        stream.urls = [stream.url]
         stream.codec = "aac"
         stream.container = "mp4"
         stream.manifestMimeType = "application/dash+xml"
+        stream.soundQuality = "HIGH"
         return stream
 
     def test_device_auth_pending_without_status_keeps_waiting(self):
@@ -250,6 +254,69 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         finally:
             for key, value in old_values.items():
                 setattr(paths.SETTINGS, key, value)
+
+    def test_atmos_stream_adds_identifying_suffix_to_default_track_filename(self):
+        old_values = {
+            "downloadPath": paths.SETTINGS.downloadPath,
+            "trackFileFormat": paths.SETTINGS.trackFileFormat,
+            "audioQuality": paths.SETTINGS.audioQuality,
+        }
+        stream = self._stream()
+        stream.codec = "ec-3"
+        stream.soundQuality = "DOLBY_ATMOS"
+        try:
+            paths.SETTINGS.downloadPath = "/tmp/tidekeeper"
+            paths.SETTINGS.trackFileFormat = "{TrackNumber} - {ArtistName} - {TrackTitle}{ExplicitFlag}"
+            paths.SETTINGS.audioQuality = AudioQuality.Atmos
+
+            track_path = paths.getTrackPath(self._track(), stream, self._album())
+
+            self.assertTrue(track_path.endswith("01 - Artist - Track [Dolby Atmos].mp4"))
+        finally:
+            for key, value in old_values.items():
+                setattr(paths.SETTINGS, key, value)
+
+    def test_track_path_supports_stream_quality_and_codec_tokens(self):
+        old_values = {
+            "downloadPath": paths.SETTINGS.downloadPath,
+            "trackFileFormat": paths.SETTINGS.trackFileFormat,
+            "audioQuality": paths.SETTINGS.audioQuality,
+        }
+        stream = self._stream()
+        stream.codec = "ec-3"
+        stream.soundQuality = "DOLBY_ATMOS"
+        try:
+            paths.SETTINGS.downloadPath = "/tmp/tidekeeper"
+            paths.SETTINGS.trackFileFormat = "{TrackTitle} [{StreamQuality}] [{Codec}]"
+            paths.SETTINGS.audioQuality = AudioQuality.Atmos
+
+            track_path = paths.getTrackPath(self._track(), stream, self._album())
+
+            self.assertTrue(track_path.endswith("Track [Dolby Atmos] [ec-3].mp4"))
+        finally:
+            for key, value in old_values.items():
+                setattr(paths.SETTINGS, key, value)
+
+    def test_failed_track_log_is_reusable_as_link_file(self):
+        old_download_path = download.SETTINGS.downloadPath
+        track = self._track()
+        album = self._album()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                download.SETTINGS.downloadPath = temp_dir
+                with mock.patch.object(download.TIDAL_API, "getStreamUrl", side_effect=Exception("HTTP 429")):
+                    ok, msg = download.downloadTrack(track, album)
+
+                failed_log = Path(temp_dir) / "failed-tracks.txt"
+                self.assertFalse(ok)
+                self.assertIn("HTTP 429", msg)
+                self.assertTrue(failed_log.exists())
+                lines = failed_log.read_text(encoding="utf-8").splitlines()
+                retry_urls = [line for line in lines if line and not line.startswith("#")]
+                self.assertEqual(retry_urls, ["https://tidal.com/browse/track/456"])
+                self.assertTrue(any("Track" in line and "HTTP 429" in line for line in lines))
+            finally:
+                download.SETTINGS.downloadPath = old_download_path
 
 
 if __name__ == "__main__":

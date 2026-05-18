@@ -52,6 +52,29 @@ def __getExtension__(stream: StreamUrl):
     return '.m4a'
 
 
+def __getStreamQuality__(stream: StreamUrl):
+    quality = (getattr(stream, 'soundQuality', None) or '').strip()
+    labels = {
+        'DOLBY_ATMOS': 'Dolby Atmos',
+        'HI_RES_LOSSLESS': 'Max',
+        'HI_RES': 'Master',
+        'LOSSLESS': 'HiFi',
+        'HIGH': 'High',
+        'LOW': 'Normal',
+    }
+    if quality in labels:
+        return labels[quality]
+    return quality.replace('_', ' ').title() if quality else ''
+
+
+def __isAtmosStream__(stream: StreamUrl):
+    return (getattr(stream, 'soundQuality', None) or '').upper() == 'DOLBY_ATMOS'
+
+
+def __hasStreamIdentifierToken__(pathFormat: str):
+    return '{StreamQuality}' in pathFormat or '{Codec}' in pathFormat
+
+
 def getAlbumPath(album):
     artistName = __fixPath__(TIDAL_API.getArtistsName(album.artists))
     albumArtistName = __fixPath__(album.artist.name) if album.artist is not None else ""
@@ -135,6 +158,7 @@ def getTrackPath(track, stream, album=None, playlist=None):
     retpath = SETTINGS.trackFileFormat
     if retpath is None or len(retpath) <= 0:
         retpath = SETTINGS.getDefaultPathFormat(Type.Track)
+    hasStreamIdentifier = __hasStreamIdentifierToken__(retpath)
     retpath = retpath.replace(R"{TrackNumber}", number)
     retpath = retpath.replace(R"{ArtistName}", artist)
     retpath = retpath.replace(R"{ArtistsName}", artists)
@@ -143,10 +167,14 @@ def getTrackPath(track, stream, album=None, playlist=None):
     retpath = retpath.replace(R"{AlbumYear}", year)
     retpath = retpath.replace(R"{AlbumTitle}", albumName)
     retpath = retpath.replace(R"{AudioQuality}", track.audioQuality)
+    retpath = retpath.replace(R"{StreamQuality}", __fixPath__(__getStreamQuality__(stream)))
+    retpath = retpath.replace(R"{Codec}", __fixPath__(stream.codec or ''))
     retpath = retpath.replace(R"{DurationSeconds}", str(track.duration))
     retpath = retpath.replace(R"{Duration}", __getDurationStr__(track.duration))
     retpath = retpath.replace(R"{TrackID}", str(track.id))
     retpath = retpath.strip()
+    if __isAtmosStream__(stream) and SETTINGS.audioQuality == AudioQuality.Atmos and not hasStreamIdentifier:
+        retpath += " [Dolby Atmos]"
     return f"{base}/{retpath}{extension}"
 
 
