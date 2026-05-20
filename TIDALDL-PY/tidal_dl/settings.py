@@ -54,12 +54,31 @@ class Settings(aigpy.model.ModelBase):
         return ""
 
     def getAudioQualityOrNone(self, value):
+        normalized = str(value).split("(", 1)[0].strip()
+        alias = ''.join(ch for ch in normalized.lower() if ch.isalnum())
+        aliases = {
+            "aac96": AudioQuality.Normal,
+            "low": AudioQuality.Normal,
+            "lowest": AudioQuality.Normal,
+            "normal": AudioQuality.Normal,
+            "aac320": AudioQuality.High,
+            "high": AudioQuality.High,
+            "flac": AudioQuality.HiFi,
+            "hifi": AudioQuality.HiFi,
+            "lossless": AudioQuality.HiFi,
+            "hires": AudioQuality.Master,
+            "hireslossless": AudioQuality.Max,
+            "dolbyatmos": AudioQuality.Atmos,
+            "atmos": AudioQuality.Atmos,
+        }
+        if alias in aliases:
+            return aliases[alias]
         for item in AudioQuality:
             if item == value:
                 return item
-            if item.name == value:
+            if item.name == normalized:
                 return item
-            if str(value).lower() == item.name.lower():
+            if normalized.lower() == item.name.lower():
                 return item
         return None
 

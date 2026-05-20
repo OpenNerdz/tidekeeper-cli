@@ -502,6 +502,28 @@ class TidalAPI(object):
         }
         return labels.get(quality, str(quality))
 
+    def __streamAudioQuality__(self, stream):
+        quality = (getattr(stream, 'soundQuality', None) or '').upper()
+        labels = {
+            'DOLBY_ATMOS': AudioQuality.Atmos,
+            'HI_RES_LOSSLESS': AudioQuality.Max,
+            'HI_RES': AudioQuality.Master,
+            'LOSSLESS': AudioQuality.HiFi,
+            'HIGH': AudioQuality.High,
+            'LOW': AudioQuality.Normal,
+        }
+        return labels.get(quality)
+
+    def __streamQualityMismatch__(self, stream, requestedQuality):
+        actualQuality = self.__streamAudioQuality__(stream)
+        if actualQuality == requestedQuality:
+            return None
+
+        actualLabel = getattr(stream, 'soundQuality', None) or 'unknown'
+        return TidalStreamUnavailable(
+            f"Requested {self.__audioQualityLabel__(requestedQuality)} but TIDAL returned {actualLabel}."
+        )
+
     def __fallbackReason__(self, error):
         if isinstance(error, TidalStreamUnavailable):
             return "requested format is unavailable"
@@ -535,10 +557,7 @@ class TidalAPI(object):
     def __normalizeAudioQuality__(self, quality):
         if isinstance(quality, AudioQuality):
             return quality
-        for item in AudioQuality:
-            if item.name == quality or str(quality).lower() == item.name.lower():
-                return item
-        return None
+        return Settings().getAudioQualityOrNone(quality)
 
     def __getStandardStreamUrl__(self, id, quality: AudioQuality):
         paras = {
@@ -594,6 +613,12 @@ class TidalAPI(object):
                     stream = self.__getAtmosStreamUrl__(id)
                 else:
                     stream = self.__getStandardStreamUrl__(id, item)
+                mismatch = self.__streamQualityMismatch__(stream, item)
+                if mismatch is not None:
+                    lastError = mismatch
+                    if index == len(priority) - 1:
+                        raise mismatch
+                    continue
                 return self.__annotateStreamFallback__(stream, requestedQuality, item, lastError)
             except Exception as e:
                 lastError = e
@@ -610,6 +635,12 @@ class TidalAPI(object):
                     stream = self.__getAtmosStreamUrl__(id)
                 else:
                     stream = self.__getStandardStreamUrl__(id, item)
+                mismatch = self.__streamQualityMismatch__(stream, item)
+                if mismatch is not None:
+                    lastError = mismatch
+                    if index == len(qualities) - 1:
+                        raise mismatch
+                    continue
                 return self.__annotateStreamFallback__(stream, quality, item, lastError)
             except Exception as e:
                 lastError = e

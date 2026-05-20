@@ -430,6 +430,18 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             AudioQuality.Normal,
         ])
 
+    def test_audio_quality_priority_accepts_user_facing_aliases(self):
+        settings = Settings()
+
+        self.assertEqual(settings.getAudioQualityPriority(
+            "Dolby Atmos,High (AAC 320),Lossless,Low (AAC 96)"
+        ), [
+            AudioQuality.Atmos,
+            AudioQuality.High,
+            AudioQuality.HiFi,
+            AudioQuality.Normal,
+        ])
+
     def test_settings_save_serializes_audio_quality_priority_names(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             settings_path = Path(temp_dir) / "settings.json"
@@ -476,6 +488,64 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         fallback_get.assert_called_once_with(
             "tracks/456/playbackinfopostpaywall",
             {"audioquality": "HIGH", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+        )
+
+    def test_audio_quality_priority_rejects_lower_actual_quality_and_keeps_trying(self):
+        api = TidalAPI()
+        low_manifest = base64.b64encode(json.dumps({
+            "codecs": "aac",
+            "urls": ["https://example.invalid/low.m4a"],
+            "mimeType": "audio/mp4",
+        }).encode("utf-8")).decode("utf-8")
+        lossless_manifest = base64.b64encode(json.dumps({
+            "codecs": "flac",
+            "urls": ["https://example.invalid/lossless.flac"],
+            "mimeType": "audio/flac",
+        }).encode("utf-8")).decode("utf-8")
+
+        with mock.patch.object(
+            api,
+            "__getOpenApiTrackManifest__",
+            side_effect=Exception(
+                'Track manifest request failed: HTTP 403 {"errors":[{"code":"CLIENT_NOT_ENTITLED"}]}'
+            ),
+        ), mock.patch.object(api, "__get__", side_effect=[
+            {
+                "trackid": 456,
+                "audioQuality": "LOW",
+                "manifestMimeType": "application/vnd.tidal.bt",
+                "manifest": low_manifest,
+            },
+            {
+                "trackid": 456,
+                "audioQuality": "LOSSLESS",
+                "manifestMimeType": "application/vnd.tidal.bt",
+                "manifest": lossless_manifest,
+            },
+        ]) as fallback_get:
+            stream = api.getStreamUrlByPriority(456, [
+                "Atmos",
+                "High",
+                "Lossless",
+                "Low",
+            ])
+
+        self.assertEqual(stream.soundQuality, "LOSSLESS")
+        self.assertEqual(stream.url, "https://example.invalid/lossless.flac")
+        self.assertEqual(stream.requestedQuality, "Dolby Atmos")
+        self.assertEqual(stream.fallbackQuality, "HiFi")
+        self.assertEqual(
+            fallback_get.call_args_list,
+            [
+                mock.call(
+                    "tracks/456/playbackinfopostpaywall",
+                    {"audioquality": "HIGH", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+                ),
+                mock.call(
+                    "tracks/456/playbackinfopostpaywall",
+                    {"audioquality": "LOSSLESS", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+                ),
+            ],
         )
 
     def test_download_track_uses_configured_audio_quality_priority(self):
