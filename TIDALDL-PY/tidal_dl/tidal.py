@@ -423,9 +423,18 @@ class TidalAPI(object):
             ret.url = ret.urls[0]
         return ret
 
+    def __isAtmosEntitlementError__(self, error):
+        message = str(error)
+        return "CLIENT_NOT_ENTITLED" in message or "HTTP 403" in message
+
     def getStreamUrl(self, id, quality: AudioQuality):
         if quality == AudioQuality.Atmos:
-            return self.__getAtmosStreamUrl__(id)
+            try:
+                return self.__getAtmosStreamUrl__(id)
+            except Exception as e:
+                if self.__isAtmosEntitlementError__(e):
+                    return self.getStreamUrl(id, AudioQuality.Max)
+                raise
 
         squality = "HI_RES"
         if quality == AudioQuality.Normal:

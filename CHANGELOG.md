@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fall back to Max quality when an opt-in Atmos manifest request returns `CLIENT_NOT_ENTITLED`.
+
 ## 2026.5.17.4 - 2026-05-18
 
 - Added `SECURITY.md`, `CONTRIBUTING.md`, and release changelog docs.
