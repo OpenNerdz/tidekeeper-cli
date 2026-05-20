@@ -25,7 +25,7 @@ def mainCommand():
                                    "hvgl:o:q:r:",
                                    [
                                        "help", "version", "gui", "doctor",
-                                       "link=", "output=", "quality=", "resolution="
+                                       "link=", "output=", "quality=", "quality-priority=", "resolution="
                                    ])
     except getopt.GetoptError as errmsg:
         Printf.err(vars(errmsg)['msg'] + ". Use 'tidal-dl -h' for usage.")
@@ -57,6 +57,13 @@ def mainCommand():
             continue
         if opt in ('-q', '--quality'):
             SETTINGS.audioQuality = SETTINGS.getAudioQuality(val)
+            SETTINGS.audioQualityPriority = []
+            SETTINGS.save()
+            continue
+        if opt in ('--quality-priority',):
+            SETTINGS.audioQualityPriority = SETTINGS.getAudioQualityPriority(val)
+            if SETTINGS.audioQualityPriority:
+                SETTINGS.audioQuality = SETTINGS.audioQualityPriority[0]
             SETTINGS.save()
             continue
         if opt in ('-r', '--resolution'):

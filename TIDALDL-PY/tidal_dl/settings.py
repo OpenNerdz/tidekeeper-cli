@@ -34,6 +34,7 @@ class Settings(aigpy.model.ModelBase):
 
     downloadPath = "./download/"
     audioQuality = AudioQuality.Normal
+    audioQualityPriority = []
     videoQuality = VideoQuality.P360
     usePlaylistFolder = True
     albumFolderFormat = R"{ArtistName}/{Flag} {AlbumTitle} [{AlbumID}] [{AlbumYear}]"
@@ -52,13 +53,41 @@ class Settings(aigpy.model.ModelBase):
             return R"{VideoNumber} - {ArtistName} - {VideoTitle}{ExplicitFlag}"
         return ""
 
-    def getAudioQuality(self, value):
+    def getAudioQualityOrNone(self, value):
         for item in AudioQuality:
+            if item == value:
+                return item
             if item.name == value:
                 return item
             if str(value).lower() == item.name.lower():
                 return item
-        return AudioQuality.Normal
+        return None
+
+    def getAudioQuality(self, value):
+        return self.getAudioQualityOrNone(value) or AudioQuality.Normal
+
+    def getAudioQualityPriority(self, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = [item.strip() for item in value.split(',')]
+        elif isinstance(value, AudioQuality):
+            value = [value]
+
+        priority = []
+        for item in value:
+            if item is None or str(item).strip() == "":
+                continue
+            quality = self.getAudioQualityOrNone(item)
+            if quality is not None and quality not in priority:
+                priority.append(quality)
+        return priority
+
+    def getDownloadAudioQualityPriority(self):
+        priority = self.getAudioQualityPriority(self.audioQualityPriority)
+        if priority:
+            return priority
+        return [self.audioQuality]
 
     def getVideoQuality(self, value):
         for item in VideoQuality:
@@ -76,6 +105,7 @@ class Settings(aigpy.model.ModelBase):
                 return
 
         self.audioQuality = self.getAudioQuality(self.audioQuality)
+        self.audioQualityPriority = self.getAudioQualityPriority(self.audioQualityPriority)
         self.videoQuality = self.getVideoQuality(self.videoQuality)
 
         if self.albumFolderFormat is None:
@@ -96,6 +126,7 @@ class Settings(aigpy.model.ModelBase):
     def save(self):
         data = aigpy.model.modelToDict(self)
         data['audioQuality'] = self.audioQuality.name
+        data['audioQualityPriority'] = [item.name for item in self.getAudioQualityPriority(self.audioQualityPriority)]
         data['videoQuality'] = self.videoQuality.name
         txt = json.dumps(data)
         aigpy.file.write(self._path_, txt, 'w+')

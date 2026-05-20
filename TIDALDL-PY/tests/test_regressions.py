@@ -11,6 +11,7 @@ import tidal_dl
 from tidal_dl import apiKey, download, events, paths
 from tidal_dl.enums import AudioQuality, Type, VideoQuality
 from tidal_dl.model import StreamUrl
+from tidal_dl.settings import Settings
 from tidal_dl.tidal import TidalAPI, TidalApiError
 
 
@@ -408,6 +409,136 @@ class CliAuthPathRegressionTests(unittest.TestCase):
                 ),
             ],
         )
+
+    def test_settings_read_parses_audio_quality_priority(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings_path = Path(temp_dir) / "settings.json"
+            settings_path.write_text(json.dumps({
+                "audioQuality": "Atmos",
+                "audioQualityPriority": ["Atmos", "High", "HiFi", "Normal"],
+                "videoQuality": "P360",
+            }), encoding="utf-8")
+
+            settings = Settings()
+            settings.read(str(settings_path))
+
+        self.assertEqual(settings.audioQuality, AudioQuality.Atmos)
+        self.assertEqual(settings.audioQualityPriority, [
+            AudioQuality.Atmos,
+            AudioQuality.High,
+            AudioQuality.HiFi,
+            AudioQuality.Normal,
+        ])
+
+    def test_settings_save_serializes_audio_quality_priority_names(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings_path = Path(temp_dir) / "settings.json"
+            settings = Settings()
+            settings.read(str(settings_path))
+            settings.audioQuality = AudioQuality.Atmos
+            settings.audioQualityPriority = [AudioQuality.Atmos, AudioQuality.High, AudioQuality.HiFi]
+            settings.save()
+
+            data = json.loads(settings_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(data["audioQuality"], "Atmos")
+        self.assertEqual(data["audioQualityPriority"], ["Atmos", "High", "HiFi"])
+
+    def test_audio_quality_priority_tries_high_before_lossless(self):
+        api = TidalAPI()
+        manifest = base64.b64encode(json.dumps({
+            "codecs": "aac",
+            "urls": ["https://example.invalid/fallback.m4a"],
+            "mimeType": "audio/mp4",
+        }).encode("utf-8")).decode("utf-8")
+
+        with mock.patch.object(
+            api,
+            "__getOpenApiTrackManifest__",
+            side_effect=Exception(
+                'Track manifest request failed: HTTP 403 {"errors":[{"code":"CLIENT_NOT_ENTITLED"}]}'
+            ),
+        ), mock.patch.object(api, "__get__", return_value={
+            "trackid": 456,
+            "audioQuality": "HIGH",
+            "manifestMimeType": "application/vnd.tidal.bt",
+            "manifest": manifest,
+        }) as fallback_get:
+            stream = api.getStreamUrlByPriority(456, [
+                "Atmos",
+                "High",
+                "HiFi",
+                "Normal",
+            ])
+
+        self.assertEqual(stream.soundQuality, "HIGH")
+        self.assertEqual(stream.url, "https://example.invalid/fallback.m4a")
+        fallback_get.assert_called_once_with(
+            "tracks/456/playbackinfopostpaywall",
+            {"audioquality": "HIGH", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+        )
+
+    def test_download_track_uses_configured_audio_quality_priority(self):
+        old_priority = download.SETTINGS.audioQualityPriority
+        old_quality = download.SETTINGS.audioQuality
+        track = self._track()
+        try:
+            download.SETTINGS.audioQuality = AudioQuality.Atmos
+            download.SETTINGS.audioQualityPriority = [AudioQuality.Atmos, AudioQuality.High]
+            expected_stream = self._stream()
+            with mock.patch.object(
+                download.TIDAL_API,
+                "getStreamUrlByPriority",
+                return_value=expected_stream,
+            ) as priority_get:
+                stream = download.__getTrackStream__(track.id)
+
+            self.assertIs(stream, expected_stream)
+            priority_get.assert_called_once_with(track.id, [AudioQuality.Atmos, AudioQuality.High])
+        finally:
+            download.SETTINGS.audioQualityPriority = old_priority
+            download.SETTINGS.audioQuality = old_quality
+
+    def test_quality_priority_command_sets_fallback_order(self):
+        old_argv = sys.argv
+        old_quality = tidal_dl.SETTINGS.audioQuality
+        old_priority = tidal_dl.SETTINGS.audioQualityPriority
+        sys.argv = ["tidekeeper", "--quality-priority", "Atmos,High,HiFi,Normal"]
+        try:
+            with mock.patch.object(tidal_dl.aigpy.path, "mkdirs", return_value=True), \
+                 mock.patch.object(tidal_dl.SETTINGS, "save") as save:
+                tidal_dl.mainCommand()
+
+            self.assertEqual(tidal_dl.SETTINGS.audioQuality, AudioQuality.Atmos)
+            self.assertEqual(tidal_dl.SETTINGS.audioQualityPriority, [
+                AudioQuality.Atmos,
+                AudioQuality.High,
+                AudioQuality.HiFi,
+                AudioQuality.Normal,
+            ])
+            save.assert_called()
+        finally:
+            sys.argv = old_argv
+            tidal_dl.SETTINGS.audioQuality = old_quality
+            tidal_dl.SETTINGS.audioQualityPriority = old_priority
+
+    def test_quality_command_clears_fallback_order(self):
+        old_argv = sys.argv
+        old_quality = tidal_dl.SETTINGS.audioQuality
+        old_priority = tidal_dl.SETTINGS.audioQualityPriority
+        sys.argv = ["tidekeeper", "--quality", "High"]
+        try:
+            tidal_dl.SETTINGS.audioQualityPriority = [AudioQuality.Atmos, AudioQuality.High]
+            with mock.patch.object(tidal_dl.aigpy.path, "mkdirs", return_value=True), \
+                 mock.patch.object(tidal_dl.SETTINGS, "save"):
+                tidal_dl.mainCommand()
+
+            self.assertEqual(tidal_dl.SETTINGS.audioQuality, AudioQuality.High)
+            self.assertEqual(tidal_dl.SETTINGS.audioQualityPriority, [])
+        finally:
+            sys.argv = old_argv
+            tidal_dl.SETTINGS.audioQuality = old_quality
+            tidal_dl.SETTINGS.audioQualityPriority = old_priority
 
     def test_tidal_url_parser_ignores_query_strings_and_fragments(self):
         api = TidalAPI()

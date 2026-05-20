@@ -532,6 +532,14 @@ class TidalAPI(object):
         message = str(error)
         return "CLIENT_NOT_ENTITLED" in message or "HTTP 403" in message
 
+    def __normalizeAudioQuality__(self, quality):
+        if isinstance(quality, AudioQuality):
+            return quality
+        for item in AudioQuality:
+            if item.name == quality or str(quality).lower() == item.name.lower():
+                return item
+        return None
+
     def __getStandardStreamUrl__(self, id, quality: AudioQuality):
         paras = {
             "audioquality": self.__audioQualityParam__(quality),
@@ -568,6 +576,30 @@ class TidalAPI(object):
             return ret
 
         raise Exception("Can't get the streamUrl, type is " + resp.manifestMimeType)
+
+    def getStreamUrlByPriority(self, id, qualities):
+        priority = []
+        for quality in qualities or []:
+            normalized = self.__normalizeAudioQuality__(quality)
+            if normalized is not None and normalized not in priority:
+                priority.append(normalized)
+        if not priority:
+            priority = [AudioQuality.Normal]
+
+        lastError = None
+        requestedQuality = priority[0]
+        for index, item in enumerate(priority):
+            try:
+                if item == AudioQuality.Atmos:
+                    stream = self.__getAtmosStreamUrl__(id)
+                else:
+                    stream = self.__getStandardStreamUrl__(id, item)
+                return self.__annotateStreamFallback__(stream, requestedQuality, item, lastError)
+            except Exception as e:
+                lastError = e
+                if index == len(priority) - 1 or not self.__isStreamFallbackError__(e):
+                    raise
+        raise lastError
 
     def getStreamUrl(self, id, quality: AudioQuality):
         lastError = None

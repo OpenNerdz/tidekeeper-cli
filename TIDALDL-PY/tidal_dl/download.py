@@ -467,10 +467,17 @@ def downloadVideo(video: Video, album: Album = None, playlist: Playlist = None):
         return False, str(e)
 
 
+def __getTrackStream__(track_id):
+    priority = SETTINGS.getDownloadAudioQualityPriority()
+    if len(priority) > 1:
+        return TIDAL_API.getStreamUrlByPriority(track_id, priority)
+    return TIDAL_API.getStreamUrl(track_id, priority[0])
+
+
 def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, partSize=DEFAULT_PART_SIZE):
     title = getattr(track, 'title', None) or str(getattr(track, 'id', 'unknown'))
     try:
-        stream = TIDAL_API.getStreamUrl(track.id, SETTINGS.audioQuality)
+        stream = __getTrackStream__(track.id)
         path = getTrackPath(track, stream, album, playlist)
         partPath = path + '.part'
 

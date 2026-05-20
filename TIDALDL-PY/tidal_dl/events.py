@@ -157,6 +157,10 @@ def changeQualitySettings():
         int(Printf.enterLimit(LANG.select.CHANGE_AUDIO_QUALITY,
                               LANG.select.MSG_INPUT_ERR,
                               ['0', '1', '2', '3', '4', '5'])))
+    priority = Printf.enter(
+        "Audio quality priority comma list, blank for single quality, e.g. Atmos,High,HiFi,Normal:"
+    )
+    SETTINGS.audioQualityPriority = SETTINGS.getAudioQualityPriority(priority)
     SETTINGS.videoQuality = VideoQuality(
         int(Printf.enterLimit(LANG.select.CHANGE_VIDEO_QUALITY,
                               LANG.select.MSG_INPUT_ERR,

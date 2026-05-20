@@ -87,6 +87,7 @@ class Printf(object):
                 ("-l, --link URL", "Download URL/ID/file"),
                 ("-o, --output PATH", "Set save folder"),
                 ("-q, --quality NAME", "Normal, High, HiFi, Master, Max, Atmos"),
+                ("--quality-priority LIST", "Fallback order, e.g. Atmos,High,HiFi,Normal"),
                 ("-r, --resolution NAME", "P1080, P720, P480, P360"),
             ]
             for option, description in rows:
@@ -101,7 +102,8 @@ class Printf(object):
             ["--doctor", "Check config, auth, and local tools"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
-            ["-q, --quality", "Set audio quality: Normal, High, HiFi, Master, Max, Atmos"],
+            ["-q, --quality", "Set one audio quality: Normal, High, HiFi, Master, Max, Atmos"],
+            ["--quality-priority", "Set fallback order, e.g. Atmos,High,HiFi,Normal"],
             ["-r, --resolution", "Set video quality: P1080, P720, P480, P360"]
         ])
         tb.set_style(prettytable.PLAIN_COLUMNS)
@@ -129,6 +131,7 @@ class Printf(object):
 
             #settings - quality
             [LANG.select.SETTING_AUDIO_QUALITY, data.audioQuality],
+            ["Audio quality priority", ",".join(item.name for item in data.getAudioQualityPriority(data.audioQualityPriority)) or "off"],
             [LANG.select.SETTING_VIDEO_QUALITY, data.videoQuality],
 
             #settings - else
@@ -157,6 +160,9 @@ class Printf(object):
         compact = Printf.__isCompact__()
         path = Printf.__shorten__(data.downloadPath, 42 if compact else 68)
         audio = Printf.__enumName__(data.audioQuality)
+        priority = data.getAudioQualityPriority(data.audioQualityPriority)
+        if priority:
+            audio = ">".join(item.name for item in priority)
         video = Printf.__enumName__(data.videoQuality)
 
         print("")
