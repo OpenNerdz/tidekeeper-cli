@@ -83,6 +83,7 @@ class Printf(object):
                 ("-h, --help", "Show help"),
                 ("-v, --version", "Show version"),
                 ("-g, --gui", "Open GUI if available"),
+                ("--doctor", "Check config, auth, and local tools"),
                 ("-l, --link URL", "Download URL/ID/file"),
                 ("-o, --output PATH", "Set save folder"),
                 ("-q, --quality NAME", "Normal, High, HiFi, Master, Max, Atmos"),
@@ -97,6 +98,7 @@ class Printf(object):
             ["-h, --help", "Show this help"],
             ["-v, --version", "Show version"],
             ["-g, --gui", "Open the simple GUI"],
+            ["--doctor", "Check config, auth, and local tools"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
             ["-q, --quality", "Set audio quality: Normal, High, HiFi, Master, Max, Atmos"],
@@ -283,10 +285,15 @@ class Printf(object):
         if stream is not None:
             tb.add_row(["Get-Q", str(stream.soundQuality)])
             tb.add_row(["Get-Codec", str(stream.codec)])
+            if stream.fallbackReason:
+                tb.add_row(["Requested-Q", str(stream.requestedQuality)])
+                tb.add_row(["Fallback", f"{stream.fallbackQuality} ({stream.fallbackReason})"])
         print(tb)
         logging.info("====track " + str(data.id) + "====\n" + \
                      "title:" + data.title + "\n" + \
                      "version:" + str(data.version) + "\n" + \
+                     "quality:" + str(getattr(stream, 'soundQuality', '')) + "\n" + \
+                     "fallback:" + str(getattr(stream, 'fallbackError', '')) + "\n" + \
                      "==================================")
 
     @staticmethod

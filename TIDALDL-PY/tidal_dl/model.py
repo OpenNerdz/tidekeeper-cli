@@ -19,6 +19,10 @@ class StreamUrl(aigpy.model.ModelBase):
         self.codec = None
         self.encryptionKey = None
         self.soundQuality = None
+        self.requestedQuality = None
+        self.fallbackQuality = None
+        self.fallbackReason = None
+        self.fallbackError = None
         self.manifestMimeType = None
         self.container = None
 

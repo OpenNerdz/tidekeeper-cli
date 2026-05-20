@@ -74,9 +74,13 @@ commands above.
 
 ```bash
 tidekeeper --help
+tidekeeper --doctor
 tidekeeper
 tidekeeper -l "https://tidal.com/browse/track/70973230"
 ```
+
+`tidekeeper --doctor` checks the saved client, token, download path, and local
+tools without starting a download.
 
 Dolby Atmos downloads are opt-in:
 
@@ -93,8 +97,10 @@ When an Atmos stream is downloaded, the default track filename gets a
 {TrackNumber} - {ArtistName} - {TrackTitle} [{StreamQuality}] [{Codec}]
 ```
 
-If TIDAL returns `CLIENT_NOT_ENTITLED` for the Atmos manifest, Tidekeeper falls
-back to Max quality for that track so the download can continue.
+If TIDAL blocks a requested stream manifest or the requested format is not
+available for a track, Tidekeeper falls back through lower audio qualities so
+the download can continue when another entitled format is available. Track
+output shows the requested quality and the fallback quality when this happens.
 
 If a track download fails, Tidekeeper appends it to `failed-tracks.txt` in the
 download folder. The file keeps comments with the title and reason, followed by

@@ -27,11 +27,50 @@ requests.adapters.DEFAULT_RETRIES = 5
 REQUEST_TIMEOUT = (5, 60)
 
 
+class TidalApiError(Exception):
+    def __init__(self, message, statusCode=None, errorCodes=None):
+        super().__init__(message)
+        self.statusCode = statusCode
+        self.errorCodes = errorCodes or []
+
+
+class TidalStreamUnavailable(Exception):
+    pass
+
+
 class TidalAPI(object):
     def __init__(self):
         self.key = LoginKey()
         self.apiKey = {'clientId': 'fX2JxdmntZWK0ixT',
                        'clientSecret': '1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg='}
+
+    def __responseErrorCodes__(self, response):
+        try:
+            data = response.json()
+        except ValueError:
+            return []
+
+        codes = []
+        if isinstance(data, dict):
+            errors = data.get('errors')
+            if isinstance(errors, list):
+                codes += [
+                    item.get('code') for item in errors
+                    if isinstance(item, dict) and item.get('code')
+                ]
+            if data.get('code'):
+                codes.append(data.get('code'))
+            if data.get('sub_status'):
+                codes.append(str(data.get('sub_status')))
+        return codes
+
+    def __httpError__(self, action, response):
+        detail = response.text[:200].replace("\n", " ")
+        return TidalApiError(
+            f"{action} failed: HTTP {response.status_code} {detail}",
+            response.status_code,
+            self.__responseErrorCodes__(response),
+        )
 
     def __get__(self, path, params=None, urlpre='https://api.tidalhifi.com/v1/'):
         header = {}
@@ -59,6 +98,9 @@ class TidalAPI(object):
                     print('')
                     continue
 
+                if respond.status_code != 200:
+                    raise self.__httpError__("Get operation", respond)
+
                 result = json.loads(respond.text)
                 if 'status' not in result:
                     return result
@@ -66,6 +108,9 @@ class TidalAPI(object):
                 if 'userMessage' in result and result['userMessage'] is not None:
                     errmsg += result['userMessage']
                 break
+            except TidalApiError as e:
+                if index == 2:
+                    raise e
             except Exception as e:
                 if index == 2 and respond is not None:
                     errmsg += respond.text
@@ -394,8 +439,7 @@ class TidalAPI(object):
             timeout=REQUEST_TIMEOUT,
         )
         if response.status_code != 200:
-            detail = response.text[:200].replace("\n", " ")
-            raise Exception(f"Track manifest request failed: HTTP {response.status_code} {detail}")
+            raise self.__httpError__("Track manifest request", response)
 
         data = response.json()
         return data.get('data', {}).get('attributes', {})
@@ -404,11 +448,11 @@ class TidalAPI(object):
         attrs = self.__getOpenApiTrackManifest__(id, ['EAC3_JOC'])
         formats = attrs.get('formats') or []
         if 'EAC3_JOC' not in formats:
-            raise Exception("Dolby Atmos stream is not available for this track.")
+            raise TidalStreamUnavailable("Dolby Atmos stream is not available for this track.")
 
         uri = attrs.get('uri') or ''
         if ',' not in uri:
-            raise Exception("Dolby Atmos manifest is empty.")
+            raise TidalStreamUnavailable("Dolby Atmos manifest is empty.")
 
         xmldata = base64.b64decode(uri.split(',', 1)[1]).decode('utf-8')
         ret = StreamUrl()
@@ -423,30 +467,77 @@ class TidalAPI(object):
             ret.url = ret.urls[0]
         return ret
 
-    def __isAtmosEntitlementError__(self, error):
+    def __audioQualityParam__(self, quality: AudioQuality):
+        if quality == AudioQuality.Normal:
+            return "LOW"
+        if quality == AudioQuality.High:
+            return "HIGH"
+        if quality == AudioQuality.HiFi:
+            return "LOSSLESS"
+        if quality == AudioQuality.Max:
+            return "HI_RES_LOSSLESS"
+        return "HI_RES"
+
+    def __qualityFallbacks__(self, quality: AudioQuality):
+        ladder = [
+            AudioQuality.Atmos,
+            AudioQuality.Max,
+            AudioQuality.Master,
+            AudioQuality.HiFi,
+            AudioQuality.High,
+            AudioQuality.Normal,
+        ]
+        if quality not in ladder:
+            return [quality]
+        return ladder[ladder.index(quality):]
+
+    def __audioQualityLabel__(self, quality: AudioQuality):
+        labels = {
+            AudioQuality.Atmos: 'Dolby Atmos',
+            AudioQuality.Max: 'Max',
+            AudioQuality.Master: 'Master',
+            AudioQuality.HiFi: 'HiFi',
+            AudioQuality.High: 'High',
+            AudioQuality.Normal: 'Normal',
+        }
+        return labels.get(quality, str(quality))
+
+    def __fallbackReason__(self, error):
+        if isinstance(error, TidalStreamUnavailable):
+            return "requested format is unavailable"
+        if isinstance(error, TidalApiError):
+            if 'CLIENT_NOT_ENTITLED' in error.errorCodes:
+                return "requested format is not allowed for this account or track"
+            if error.statusCode == 403:
+                return "requested format was blocked"
+        return "requested format failed"
+
+    def __annotateStreamFallback__(self, stream, requestedQuality, actualQuality, fallbackError):
+        stream.requestedQuality = self.__audioQualityLabel__(requestedQuality)
+        if fallbackError is None:
+            return stream
+
+        stream.fallbackQuality = self.__audioQualityLabel__(actualQuality)
+        stream.fallbackReason = self.__fallbackReason__(fallbackError)
+        stream.fallbackError = str(fallbackError)
+        return stream
+
+    def __isStreamFallbackError__(self, error):
+        if isinstance(error, TidalStreamUnavailable):
+            return True
+        if isinstance(error, TidalApiError):
+            if 'CLIENT_NOT_ENTITLED' in error.errorCodes:
+                return True
+            return error.statusCode == 403
         message = str(error)
         return "CLIENT_NOT_ENTITLED" in message or "HTTP 403" in message
 
-    def getStreamUrl(self, id, quality: AudioQuality):
-        if quality == AudioQuality.Atmos:
-            try:
-                return self.__getAtmosStreamUrl__(id)
-            except Exception as e:
-                if self.__isAtmosEntitlementError__(e):
-                    return self.getStreamUrl(id, AudioQuality.Max)
-                raise
-
-        squality = "HI_RES"
-        if quality == AudioQuality.Normal:
-            squality = "LOW"
-        elif quality == AudioQuality.High:
-            squality = "HIGH"
-        elif quality == AudioQuality.HiFi:
-            squality = "LOSSLESS"
-        elif quality == AudioQuality.Max:
-            squality = "HI_RES_LOSSLESS"
-
-        paras = {"audioquality": squality, "playbackmode": "STREAM", "assetpresentation": "FULL"}
+    def __getStandardStreamUrl__(self, id, quality: AudioQuality):
+        paras = {
+            "audioquality": self.__audioQualityParam__(quality),
+            "playbackmode": "STREAM",
+            "assetpresentation": "FULL",
+        }
         data = self.__get__(f'tracks/{str(id)}/playbackinfopostpaywall', paras)
         resp = aigpy.model.dictToModel(data, StreamRespond())
 
@@ -477,6 +568,22 @@ class TidalAPI(object):
             return ret
 
         raise Exception("Can't get the streamUrl, type is " + resp.manifestMimeType)
+
+    def getStreamUrl(self, id, quality: AudioQuality):
+        lastError = None
+        qualities = self.__qualityFallbacks__(quality)
+        for index, item in enumerate(qualities):
+            try:
+                if item == AudioQuality.Atmos:
+                    stream = self.__getAtmosStreamUrl__(id)
+                else:
+                    stream = self.__getStandardStreamUrl__(id, item)
+                return self.__annotateStreamFallback__(stream, quality, item, lastError)
+            except Exception as e:
+                lastError = e
+                if index == len(qualities) - 1 or not self.__isStreamFallbackError__(e):
+                    raise
+        raise lastError
 
     def getVideoStreamUrl(self, id, quality: VideoQuality):
         paras = {"videoquality": "HIGH", "playbackmode": "STREAM", "assetpresentation": "FULL"}

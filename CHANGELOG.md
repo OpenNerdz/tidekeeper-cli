@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Fall back to Max quality when an opt-in Atmos manifest request returns `CLIENT_NOT_ENTITLED`.
+- Fall back through lower audio qualities when a requested stream manifest is blocked or unavailable, and show the fallback in track output.
+- Added `tidekeeper --doctor` to check config, token status, download path access, and local tools.
 
 ## 2026.5.17.4 - 2026-05-18
 

@@ -14,6 +14,7 @@ import aigpy
 
 from .events import *
 from .settings import *
+from .diagnostics import runDoctor
 from .gui import startGui
 from .printf import Printf
 
@@ -22,13 +23,17 @@ def mainCommand():
     try:
         opts, args = getopt.getopt(sys.argv[1:],
                                    "hvgl:o:q:r:",
-                                   ["help", "version", "gui", "link=", "output=", "quality=", "resolution="])
+                                   [
+                                       "help", "version", "gui", "doctor",
+                                       "link=", "output=", "quality=", "resolution="
+                                   ])
     except getopt.GetoptError as errmsg:
         Printf.err(vars(errmsg)['msg'] + ". Use 'tidal-dl -h' for usage.")
         return
 
     link = None
     showGui = False
+    showDoctor = False
 
     for opt, val in opts:
         if opt in ('-h', '--help'):
@@ -39,6 +44,9 @@ def mainCommand():
             return
         if opt in ('-g', '--gui'):
             showGui = True
+            continue
+        if opt == '--doctor':
+            showDoctor = True
             continue
         if opt in ('-l', '--link'):
             link = val
@@ -55,6 +63,10 @@ def mainCommand():
             SETTINGS.videoQuality = SETTINGS.getVideoQuality(val)
             SETTINGS.save()
             continue
+
+    if showDoctor:
+        runDoctor()
+        return
 
     if not aigpy.path.mkdirs(SETTINGS.downloadPath):
         Printf.err(LANG.select.MSG_PATH_ERR + SETTINGS.downloadPath)

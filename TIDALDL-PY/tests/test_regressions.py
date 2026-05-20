@@ -11,7 +11,7 @@ import tidal_dl
 from tidal_dl import apiKey, download, events, paths
 from tidal_dl.enums import AudioQuality, Type, VideoQuality
 from tidal_dl.model import StreamUrl
-from tidal_dl.tidal import TidalAPI
+from tidal_dl.tidal import TidalAPI, TidalApiError
 
 
 class CliAuthPathRegressionTests(unittest.TestCase):
@@ -101,6 +101,21 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         finally:
             sys.argv = old_argv
 
+        start.assert_not_called()
+
+    def test_doctor_command_runs_without_login_or_download(self):
+        old_argv = sys.argv
+        sys.argv = ["tidekeeper", "--doctor"]
+        try:
+            with mock.patch.object(tidal_dl, "runDoctor", return_value=True) as doctor, \
+                 mock.patch.object(tidal_dl, "loginByConfig") as login, \
+                 mock.patch.object(tidal_dl, "start") as start:
+                tidal_dl.mainCommand()
+        finally:
+            sys.argv = old_argv
+
+        doctor.assert_called_once_with()
+        login.assert_not_called()
         start.assert_not_called()
 
     def test_empty_path_formats_use_default_formats(self):
@@ -347,6 +362,51 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         fallback_get.assert_called_once_with(
             "tracks/456/playbackinfopostpaywall",
             {"audioquality": "HI_RES_LOSSLESS", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+        )
+
+    def test_blocked_max_stream_falls_back_to_legacy_hi_res_stream(self):
+        api = TidalAPI()
+        manifest = base64.b64encode(json.dumps({
+            "codecs": "flac",
+            "urls": ["https://example.invalid/hires.flac"],
+            "mimeType": "audio/flac",
+        }).encode("utf-8")).decode("utf-8")
+
+        blocked = TidalApiError(
+            'Get operation failed: HTTP 403 {"errors":[{"code":"CLIENT_NOT_ENTITLED"}]}',
+            403,
+            ["CLIENT_NOT_ENTITLED"],
+        )
+
+        with mock.patch.object(api, "__get__", side_effect=[
+            blocked,
+            {
+                "trackid": 456,
+                "audioQuality": "HI_RES",
+                "manifestMimeType": "application/vnd.tidal.bt",
+                "manifest": manifest,
+            },
+        ]) as get:
+            stream = api.getStreamUrl(456, AudioQuality.Max)
+
+        self.assertEqual(stream.soundQuality, "HI_RES")
+        self.assertEqual(stream.url, "https://example.invalid/hires.flac")
+        self.assertEqual(stream.requestedQuality, "Max")
+        self.assertEqual(stream.fallbackQuality, "Master")
+        self.assertEqual(stream.fallbackReason, "requested format is not allowed for this account or track")
+        self.assertIn("CLIENT_NOT_ENTITLED", stream.fallbackError)
+        self.assertEqual(
+            get.call_args_list,
+            [
+                mock.call(
+                    "tracks/456/playbackinfopostpaywall",
+                    {"audioquality": "HI_RES_LOSSLESS", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+                ),
+                mock.call(
+                    "tracks/456/playbackinfopostpaywall",
+                    {"audioquality": "HI_RES", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+                ),
+            ],
         )
 
     def test_tidal_url_parser_ignores_query_strings_and_fragments(self):
