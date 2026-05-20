@@ -93,6 +93,9 @@ When an Atmos stream is downloaded, the default track filename gets a
 {TrackNumber} - {ArtistName} - {TrackTitle} [{StreamQuality}] [{Codec}]
 ```
 
+If TIDAL returns `CLIENT_NOT_ENTITLED` for the Atmos manifest, Tidekeeper falls
+back to Max quality for that track so the download can continue.
+
 If a track download fails, Tidekeeper appends it to `failed-tracks.txt` in the
 download folder. The file keeps comments with the title and reason, followed by
 a plain TIDAL track URL. Retry those tracks later with:

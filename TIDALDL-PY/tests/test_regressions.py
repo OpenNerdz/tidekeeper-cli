@@ -1,3 +1,5 @@
+import base64
+import json
 import sys
 import tempfile
 import unittest
@@ -317,6 +319,35 @@ class CliAuthPathRegressionTests(unittest.TestCase):
                 self.assertTrue(any("Track" in line and "HTTP 429" in line for line in lines))
             finally:
                 download.SETTINGS.downloadPath = old_download_path
+
+    def test_atmos_client_not_entitled_falls_back_to_max_stream(self):
+        api = TidalAPI()
+        manifest = base64.b64encode(json.dumps({
+            "codecs": "flac",
+            "urls": ["https://example.invalid/fallback.flac"],
+            "mimeType": "audio/flac",
+        }).encode("utf-8")).decode("utf-8")
+
+        with mock.patch.object(
+            api,
+            "__getOpenApiTrackManifest__",
+            side_effect=Exception(
+                'Track manifest request failed: HTTP 403 {"errors":[{"code":"CLIENT_NOT_ENTITLED"}]}'
+            ),
+        ), mock.patch.object(api, "__get__", return_value={
+            "trackid": 456,
+            "audioQuality": "HI_RES_LOSSLESS",
+            "manifestMimeType": "application/vnd.tidal.bt",
+            "manifest": manifest,
+        }) as fallback_get:
+            stream = api.getStreamUrl(456, AudioQuality.Atmos)
+
+        self.assertEqual(stream.soundQuality, "HI_RES_LOSSLESS")
+        self.assertEqual(stream.url, "https://example.invalid/fallback.flac")
+        fallback_get.assert_called_once_with(
+            "tracks/456/playbackinfopostpaywall",
+            {"audioquality": "HI_RES_LOSSLESS", "playbackmode": "STREAM", "assetpresentation": "FULL"},
+        )
 
     def test_tidal_url_parser_ignores_query_strings_and_fragments(self):
         api = TidalAPI()
