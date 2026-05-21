@@ -289,7 +289,7 @@ class CliAuthPathRegressionTests(unittest.TestCase):
 
             track_path = paths.getTrackPath(self._track(), stream, self._album())
 
-            self.assertTrue(track_path.endswith("01 - Artist - Track [Dolby Atmos].mp4"))
+            self.assertTrue(track_path.endswith("01 - Artist - Track [Dolby Atmos].m4a"))
         finally:
             for key, value in old_values.items():
                 setattr(paths.SETTINGS, key, value)
@@ -310,10 +310,23 @@ class CliAuthPathRegressionTests(unittest.TestCase):
 
             track_path = paths.getTrackPath(self._track(), stream, self._album())
 
-            self.assertTrue(track_path.endswith("Track [Dolby Atmos] [ec-3].mp4"))
+            self.assertTrue(track_path.endswith("Track [Dolby Atmos] [ec-3].m4a"))
         finally:
             for key, value in old_values.items():
                 setattr(paths.SETTINGS, key, value)
+
+    def test_metadata_save_failure_is_reported(self):
+        track = self._track()
+        album = self._album()
+        track.album = album
+        track.copyRight = "Copyright"
+        track.isrc = "ISRC"
+        fake_tag = SimpleNamespace(save=mock.Mock(return_value=(False, "tag write failed")))
+
+        with mock.patch.object(download.aigpy.tag, "TagTool", return_value=fake_tag), \
+             mock.patch.object(download.TIDAL_API, "getCoverUrl", return_value=""):
+            with self.assertRaisesRegex(Exception, "tag write failed"):
+                download.__setMetaData__(track, album, "/tmp/track.m4a", None, "")
 
     def test_failed_track_log_is_reusable_as_link_file(self):
         old_download_path = download.SETTINGS.downloadPath

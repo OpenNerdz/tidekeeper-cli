@@ -351,6 +351,16 @@ def __parseContributors__(roleType, Contributors):
         return None
 
 
+def __metadataSaveError__(result):
+    if isinstance(result, tuple):
+        if len(result) > 0 and result[0] is False:
+            return str(result[1]) if len(result) > 1 else "metadata writer returned false"
+        return None
+    if result is False:
+        return "metadata writer returned false"
+    return None
+
+
 def __setMetaData__(track: Track, album: Album, filepath, contributors, lyrics):
     obj = aigpy.tag.TagTool(filepath)
     obj.album = track.album.title
@@ -372,7 +382,9 @@ def __setMetaData__(track: Track, album: Album, filepath, contributors, lyrics):
     if obj.totaldisc <= 1:
         obj.totaltrack = album.numberOfTracks
     coverpath = TIDAL_API.getCoverUrl(album.cover, "1280", "1280")
-    obj.save(coverpath)
+    error = __metadataSaveError__(obj.save(coverpath))
+    if error is not None:
+        raise Exception(error)
 
 
 def downloadCover(album):
