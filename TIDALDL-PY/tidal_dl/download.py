@@ -307,6 +307,10 @@ def __lyricsText__(value):
     return text if text.strip() else ''
 
 
+def __hasTimedLyrics__(lyricsData):
+    return bool(__lyricsText__(getattr(lyricsData, 'subtitles', None)))
+
+
 def __lyricsPayload__(lyricsData):
     if lyricsData is None:
         return '', '', ''
@@ -322,19 +326,106 @@ def __lyricsPayload__(lyricsData):
     return '', '', ''
 
 
+def __writeTextFile__(path, content):
+    __ensureParentDir__(path)
+    with open(path, 'w', encoding='utf-8', newline='') as output:
+        output.write(content)
+
+
 def __writeLyricsFile__(trackPath, lyricsData):
     metadataLyrics, fileLyrics, extension = __lyricsPayload__(lyricsData)
     if SETTINGS.lyricFile and fileLyrics:
         lyricPath = trackPath.rsplit(".", 1)[0] + extension
-        aigpy.file.write(lyricPath, fileLyrics, 'w')
+        __writeTextFile__(lyricPath, fileLyrics)
     return metadataLyrics
 
 
-def __saveLyricsForTrack__(trackId, trackPath):
+def __normalizeLyricsMatchText__(value):
+    return " ".join(str(value or "").casefold().split())
+
+
+def __artistNames__(artists):
+    return [
+        __normalizeLyricsMatchText__(getattr(artist, 'name', ''))
+        for artist in (artists or [])
+        if getattr(artist, 'name', None)
+    ]
+
+
+def __sameLyricsCandidate__(track, candidate):
+    if __normalizeLyricsMatchText__(getattr(track, 'title', '')) != __normalizeLyricsMatchText__(getattr(candidate, 'title', '')):
+        return False
+
+    trackArtists = set(__artistNames__(getattr(track, 'artists', [])))
+    candidateArtists = set(__artistNames__(getattr(candidate, 'artists', [])))
+    if not trackArtists or not candidateArtists:
+        return False
+    return bool(trackArtists.intersection(candidateArtists))
+
+
+def __mergeLyrics__(primary, timed):
+    if primary is None:
+        return timed
+    if timed is None or not __hasTimedLyrics__(timed):
+        return primary
+
+    merged = Lyrics()
+    merged.trackId = getattr(primary, 'trackId', None) or getattr(timed, 'trackId', None)
+    merged.lyricsProvider = getattr(primary, 'lyricsProvider', None) or getattr(timed, 'lyricsProvider', None)
+    merged.providerCommontrackId = getattr(primary, 'providerCommontrackId', None) or getattr(timed, 'providerCommontrackId', None)
+    merged.providerLyricsId = getattr(primary, 'providerLyricsId', None) or getattr(timed, 'providerLyricsId', None)
+    merged.lyrics = __lyricsText__(getattr(primary, 'lyrics', None)) or __lyricsText__(getattr(timed, 'lyrics', None))
+    merged.subtitles = getattr(timed, 'subtitles', None)
+    return merged
+
+
+def __findTimedLyricsForTrack__(track):
+    title = getattr(track, 'title', None)
+    if aigpy.string.isNull(title):
+        return None
+
+    artists = [name for name in __artistNames__(getattr(track, 'artists', [])) if name]
+    query = title if not artists else f"{title} {' '.join(artists[:2])}"
+
     try:
-        return __writeLyricsFile__(trackPath, TIDAL_API.getLyrics(trackId))
+        result = TIDAL_API.search(query, Type.Track, limit=10)
+        candidates = TIDAL_API.getSearchResultItems(result, Type.Track)
     except Exception as e:
-        logging.info("Unable to save lyrics for track %s: %s", trackId, e)
+        logging.info("Unable to search timed lyrics fallback for track %s: %s", getattr(track, 'id', ''), e)
+        return None
+
+    for candidate in candidates:
+        if getattr(candidate, 'id', None) == getattr(track, 'id', None):
+            continue
+        if not __sameLyricsCandidate__(track, candidate):
+            continue
+        try:
+            lyrics = TIDAL_API.getLyrics(candidate.id)
+        except Exception:
+            continue
+        if __hasTimedLyrics__(lyrics):
+            return lyrics
+    return None
+
+
+def __getLyricsForTrack__(track):
+    primary = None
+    try:
+        primary = TIDAL_API.getLyrics(track.id)
+    except Exception as e:
+        logging.info("Unable to get lyrics for track %s: %s", getattr(track, 'id', ''), e)
+
+    if not SETTINGS.lyricFile or __hasTimedLyrics__(primary):
+        return primary
+
+    return __mergeLyrics__(primary, __findTimedLyricsForTrack__(track))
+
+
+def __saveLyricsForTrack__(track, trackPath):
+    try:
+        return __writeLyricsFile__(trackPath, __getLyricsForTrack__(track))
+    except Exception as e:
+        logging.info("Unable to save lyrics for track %s: %s", getattr(track, 'id', ''), e)
         return ''
 
 
@@ -509,7 +600,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         # check exist
         if __isSkip__(path, stream.urls):
             if SETTINGS.lyricFile:
-                __saveLyricsForTrack__(track.id, path)
+                __saveLyricsForTrack__(track, path)
             Printf.success(aigpy.path.getFileName(path) + " (skip:already exists!)")
             return True, ''
 
@@ -542,7 +633,7 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
         except:
             contributors = None
 
-        lyrics = __saveLyricsForTrack__(track.id, path)
+        lyrics = __saveLyricsForTrack__(track, path)
 
         try:
             __setMetaData__(track, album, path, contributors, lyrics)
