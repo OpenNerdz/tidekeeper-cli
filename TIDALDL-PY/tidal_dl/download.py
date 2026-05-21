@@ -361,6 +361,12 @@ def __metadataSaveError__(result):
     return None
 
 
+def __ensureMetadataTags__(tagTool):
+    handle = getattr(tagTool, '_handle', None)
+    if handle is not None and getattr(handle, 'tags', None) is None and hasattr(handle, 'add_tags'):
+        handle.add_tags()
+
+
 def __setMetaData__(track: Track, album: Album, filepath, contributors, lyrics):
     obj = aigpy.tag.TagTool(filepath)
     obj.album = track.album.title
@@ -382,6 +388,7 @@ def __setMetaData__(track: Track, album: Album, filepath, contributors, lyrics):
     if obj.totaldisc <= 1:
         obj.totaltrack = album.numberOfTracks
     coverpath = TIDAL_API.getCoverUrl(album.cover, "1280", "1280")
+    __ensureMetadataTags__(obj)
     error = __metadataSaveError__(obj.save(coverpath))
     if error is not None:
         raise Exception(error)

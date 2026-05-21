@@ -328,6 +328,22 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "tag write failed"):
                 download.__setMetaData__(track, album, "/tmp/track.m4a", None, "")
 
+    def test_metadata_tags_are_created_before_save_when_missing(self):
+        track = self._track()
+        album = self._album()
+        track.album = album
+        track.copyRight = "Copyright"
+        track.isrc = "ISRC"
+        fake_handle = SimpleNamespace(tags=None, add_tags=mock.Mock())
+        fake_tag = SimpleNamespace(_handle=fake_handle, save=mock.Mock(return_value=True))
+
+        with mock.patch.object(download.aigpy.tag, "TagTool", return_value=fake_tag), \
+             mock.patch.object(download.TIDAL_API, "getCoverUrl", return_value=""):
+            download.__setMetaData__(track, album, "/tmp/track.m4a", None, "")
+
+        fake_handle.add_tags.assert_called_once_with()
+        fake_tag.save.assert_called_once_with("")
+
     def test_failed_track_log_is_reusable_as_link_file(self):
         old_download_path = download.SETTINGS.downloadPath
         track = self._track()
