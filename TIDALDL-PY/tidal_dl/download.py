@@ -328,8 +328,14 @@ def __lyricsPayload__(lyricsData):
 
 def __writeTextFile__(path, content):
     __ensureParentDir__(path)
-    with open(path, 'w', encoding='utf-8', newline='') as output:
-        output.write(content)
+    tempPath = f"{path}.tmp.{os.getpid()}"
+    try:
+        with open(tempPath, 'w', encoding='utf-8', newline='') as output:
+            output.write(content)
+        os.replace(tempPath, path)
+    except Exception:
+        __removeFile__(tempPath)
+        raise
 
 
 def __writeLyricsFile__(trackPath, lyricsData):
@@ -344,6 +350,14 @@ def __normalizeLyricsMatchText__(value):
     return " ".join(str(value or "").casefold().split())
 
 
+def __rawArtistNames__(artists):
+    return [
+        str(getattr(artist, 'name', '')).strip()
+        for artist in (artists or [])
+        if getattr(artist, 'name', None)
+    ]
+
+
 def __artistNames__(artists):
     return [
         __normalizeLyricsMatchText__(getattr(artist, 'name', ''))
@@ -352,15 +366,58 @@ def __artistNames__(artists):
     ]
 
 
-def __sameLyricsCandidate__(track, candidate):
+def __albumTitle__(item):
+    album = getattr(item, 'album', None)
+    return __normalizeLyricsMatchText__(getattr(album, 'title', ''))
+
+
+def __lyricsCandidateScore__(track, candidate):
+    if getattr(candidate, 'id', None) == getattr(track, 'id', None):
+        return -1
+
     if __normalizeLyricsMatchText__(getattr(track, 'title', '')) != __normalizeLyricsMatchText__(getattr(candidate, 'title', '')):
-        return False
+        return -1
 
     trackArtists = set(__artistNames__(getattr(track, 'artists', [])))
     candidateArtists = set(__artistNames__(getattr(candidate, 'artists', [])))
     if not trackArtists or not candidateArtists:
-        return False
-    return bool(trackArtists.intersection(candidateArtists))
+        return -1
+
+    artistOverlap = trackArtists.intersection(candidateArtists)
+    if not artistOverlap:
+        return -1
+
+    score = 100 + (min(len(artistOverlap), 3) * 20)
+
+    trackArtistOrder = __artistNames__(getattr(track, 'artists', []))
+    candidateArtistOrder = __artistNames__(getattr(candidate, 'artists', []))
+    if trackArtistOrder and candidateArtistOrder and trackArtistOrder[0] == candidateArtistOrder[0]:
+        score += 15
+
+    trackIsrc = str(getattr(track, 'isrc', '') or '').strip()
+    candidateIsrc = str(getattr(candidate, 'isrc', '') or '').strip()
+    if trackIsrc and candidateIsrc:
+        score += 50 if trackIsrc == candidateIsrc else -5
+
+    try:
+        durationDelta = abs(int(getattr(track, 'duration', 0) or 0) - int(getattr(candidate, 'duration', 0) or 0))
+        if durationDelta <= 2:
+            score += 20
+        elif durationDelta <= 5:
+            score += 10
+    except Exception:
+        pass
+
+    trackAlbum = __albumTitle__(track)
+    candidateAlbum = __albumTitle__(candidate)
+    if trackAlbum and candidateAlbum and trackAlbum == candidateAlbum:
+        score += 10
+
+    noisyAlbumWords = ('commentary', 'sing-along', 'karaoke', 'instrumental')
+    if any(word in candidateAlbum for word in noisyAlbumWords):
+        score -= 15
+
+    return score
 
 
 def __mergeLyrics__(primary, timed):
@@ -384,21 +441,40 @@ def __findTimedLyricsForTrack__(track):
     if aigpy.string.isNull(title):
         return None
 
-    artists = [name for name in __artistNames__(getattr(track, 'artists', [])) if name]
-    query = title if not artists else f"{title} {' '.join(artists[:2])}"
+    queries = []
+    artists = __rawArtistNames__(getattr(track, 'artists', []))
+    for artist in artists[:5]:
+        queries.append(f"{title} {artist}")
+    if len(artists) > 1:
+        queries.append(f"{title} {' '.join(artists[:2])}")
+    queries.append(str(title))
 
-    try:
-        result = TIDAL_API.search(query, Type.Track, limit=10)
-        candidates = TIDAL_API.getSearchResultItems(result, Type.Track)
-    except Exception as e:
-        logging.info("Unable to search timed lyrics fallback for track %s: %s", getattr(track, 'id', ''), e)
-        return None
+    candidatesById = {}
+    for query in dict.fromkeys(queries):
+        try:
+            result = TIDAL_API.search(query, Type.Track, limit=10)
+            candidates = TIDAL_API.getSearchResultItems(result, Type.Track)
+        except Exception as e:
+            logging.info("Unable to search timed lyrics fallback for track %s: %s", getattr(track, 'id', ''), e)
+            continue
 
-    for candidate in candidates:
-        if getattr(candidate, 'id', None) == getattr(track, 'id', None):
-            continue
-        if not __sameLyricsCandidate__(track, candidate):
-            continue
+        for candidate in candidates:
+            candidateId = getattr(candidate, 'id', None)
+            if candidateId is not None:
+                candidatesById[candidateId] = candidate
+
+    scoredCandidates = sorted(
+        (
+            (score, candidate)
+            for candidate in candidatesById.values()
+            for score in [__lyricsCandidateScore__(track, candidate)]
+            if score >= 0
+        ),
+        key=lambda item: item[0],
+        reverse=True,
+    )
+
+    for score, candidate in scoredCandidates:
         try:
             lyrics = TIDAL_API.getLyrics(candidate.id)
         except Exception:
