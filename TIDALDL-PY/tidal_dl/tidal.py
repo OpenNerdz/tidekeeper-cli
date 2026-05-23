@@ -467,6 +467,36 @@ class TidalAPI(object):
             ret.url = ret.urls[0]
         return ret
 
+    def __getOpenApiFlacStreamUrl__(self, id):
+        attrs = self.__getOpenApiTrackManifest__(id, ['FLAC'])
+        formats = attrs.get('formats') or []
+        if 'FLAC' not in formats:
+            raise TidalStreamUnavailable("Lossless FLAC stream is not available for this track.")
+
+        uri = attrs.get('uri') or ''
+        if ',' not in uri:
+            raise TidalStreamUnavailable("Lossless FLAC manifest is empty.")
+
+        xmldata = base64.b64decode(uri.split(',', 1)[1]).decode('utf-8')
+        ret = StreamUrl()
+        ret.trackid = id
+        ret.soundQuality = 'LOSSLESS'
+        ret.manifestMimeType = 'application/dash+xml'
+        ret.codec = aigpy.string.getSub(xmldata, 'codecs="', '"')
+        ret.encryptionKey = ''
+        ret.urls = self.parse_mpd(xmldata)[0]
+        ret.container = 'mp4'
+        if len(ret.urls) > 0:
+            ret.url = ret.urls[0]
+        return ret
+
+    def __getAudioStreamUrlForQuality__(self, id, quality: AudioQuality):
+        if quality == AudioQuality.Atmos:
+            return self.__getAtmosStreamUrl__(id)
+        if quality == AudioQuality.HiFi:
+            return self.__getOpenApiFlacStreamUrl__(id)
+        return self.__getStandardStreamUrl__(id, quality)
+
     def __audioQualityParam__(self, quality: AudioQuality):
         if quality == AudioQuality.Normal:
             return "LOW"
@@ -609,10 +639,7 @@ class TidalAPI(object):
         requestedQuality = priority[0]
         for index, item in enumerate(priority):
             try:
-                if item == AudioQuality.Atmos:
-                    stream = self.__getAtmosStreamUrl__(id)
-                else:
-                    stream = self.__getStandardStreamUrl__(id, item)
+                stream = self.__getAudioStreamUrlForQuality__(id, item)
                 mismatch = self.__streamQualityMismatch__(stream, item)
                 if mismatch is not None:
                     lastError = mismatch
@@ -631,10 +658,7 @@ class TidalAPI(object):
         qualities = self.__qualityFallbacks__(quality)
         for index, item in enumerate(qualities):
             try:
-                if item == AudioQuality.Atmos:
-                    stream = self.__getAtmosStreamUrl__(id)
-                else:
-                    stream = self.__getStandardStreamUrl__(id, item)
+                stream = self.__getAudioStreamUrlForQuality__(id, item)
                 mismatch = self.__streamQualityMismatch__(stream, item)
                 if mismatch is not None:
                     lastError = mismatch

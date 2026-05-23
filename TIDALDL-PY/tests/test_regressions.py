@@ -85,6 +85,21 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         stream.soundQuality = "HIGH"
         return stream
 
+    def _dash_manifest(self, codec="flac"):
+        return (
+            "<?xml version='1.0' encoding='UTF-8'?>"
+            "<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\">"
+            "<Period><AdaptationSet contentType=\"audio\">"
+            f"<Representation codecs=\"{codec}\">"
+            "<SegmentTemplate initialization=\"https://example.invalid/init.mp4\" "
+            "media=\"https://example.invalid/$Number$.mp4\" startNumber=\"1\">"
+            "<SegmentTimeline><S d=\"1024\" r=\"1\" /></SegmentTimeline>"
+            "</SegmentTemplate>"
+            "</Representation>"
+            "</AdaptationSet></Period>"
+            "</MPD>"
+        )
+
     def test_device_auth_pending_without_status_keeps_waiting(self):
         api = TidalAPI()
         api.key.deviceCode = "device-code"
@@ -477,7 +492,7 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 download.SETTINGS.downloadPath = temp_dir
-                with mock.patch.object(download.TIDAL_API, "getStreamUrl", side_effect=Exception("HTTP 429")):
+                with mock.patch.object(download.TIDAL_API, "getStreamUrlByPriority", side_effect=Exception("HTTP 429")):
                     ok, msg = download.downloadTrack(track, album)
 
                 failed_log = Path(temp_dir) / "failed-tracks.txt"
@@ -652,30 +667,28 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             "urls": ["https://example.invalid/low.m4a"],
             "mimeType": "audio/mp4",
         }).encode("utf-8")).decode("utf-8")
-        lossless_manifest = base64.b64encode(json.dumps({
-            "codecs": "flac",
-            "urls": ["https://example.invalid/lossless.flac"],
-            "mimeType": "audio/flac",
-        }).encode("utf-8")).decode("utf-8")
+        lossless_uri = "data:application/dash+xml;base64," + base64.b64encode(
+            self._dash_manifest("flac").encode("utf-8")
+        ).decode("utf-8")
 
         with mock.patch.object(
             api,
             "__getOpenApiTrackManifest__",
-            side_effect=Exception(
-                'Track manifest request failed: HTTP 403 {"errors":[{"code":"CLIENT_NOT_ENTITLED"}]}'
-            ),
+            side_effect=[
+                Exception(
+                    'Track manifest request failed: HTTP 403 {"errors":[{"code":"CLIENT_NOT_ENTITLED"}]}'
+                ),
+                {
+                    "formats": ["FLAC"],
+                    "uri": lossless_uri,
+                },
+            ],
         ), mock.patch.object(api, "__get__", side_effect=[
             {
                 "trackid": 456,
                 "audioQuality": "LOW",
                 "manifestMimeType": "application/vnd.tidal.bt",
                 "manifest": low_manifest,
-            },
-            {
-                "trackid": 456,
-                "audioQuality": "LOSSLESS",
-                "manifestMimeType": "application/vnd.tidal.bt",
-                "manifest": lossless_manifest,
             },
         ]) as fallback_get:
             stream = api.getStreamUrlByPriority(456, [
@@ -686,22 +699,37 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             ])
 
         self.assertEqual(stream.soundQuality, "LOSSLESS")
-        self.assertEqual(stream.url, "https://example.invalid/lossless.flac")
+        self.assertEqual(stream.url, "https://example.invalid/init.mp4")
         self.assertEqual(stream.requestedQuality, "Dolby Atmos")
         self.assertEqual(stream.fallbackQuality, "HiFi")
-        self.assertEqual(
-            fallback_get.call_args_list,
-            [
-                mock.call(
-                    "tracks/456/playbackinfopostpaywall",
-                    {"audioquality": "HIGH", "playbackmode": "STREAM", "assetpresentation": "FULL"},
-                ),
-                mock.call(
-                    "tracks/456/playbackinfopostpaywall",
-                    {"audioquality": "LOSSLESS", "playbackmode": "STREAM", "assetpresentation": "FULL"},
-                ),
-            ],
+        fallback_get.assert_called_once_with(
+            "tracks/456/playbackinfopostpaywall",
+            {"audioquality": "HIGH", "playbackmode": "STREAM", "assetpresentation": "FULL"},
         )
+
+    def test_hifi_stream_uses_openapi_flac_manifest(self):
+        api = TidalAPI()
+        uri = "data:application/dash+xml;base64," + base64.b64encode(
+            self._dash_manifest("flac").encode("utf-8")
+        ).decode("utf-8")
+
+        with mock.patch.object(api, "__getOpenApiTrackManifest__", return_value={
+            "formats": ["FLAC"],
+            "uri": uri,
+        }) as openapi_get, mock.patch.object(api, "__get__") as legacy_get:
+            stream = api.getStreamUrlByPriority(456, [AudioQuality.HiFi])
+
+        self.assertEqual(stream.soundQuality, "LOSSLESS")
+        self.assertEqual(stream.codec, "flac")
+        self.assertEqual(stream.container, "mp4")
+        self.assertEqual(stream.url, "https://example.invalid/init.mp4")
+        self.assertEqual(stream.urls, [
+            "https://example.invalid/init.mp4",
+            "https://example.invalid/1.mp4",
+            "https://example.invalid/2.mp4",
+        ])
+        openapi_get.assert_called_once_with(456, ["FLAC"])
+        legacy_get.assert_not_called()
 
     def test_download_track_uses_configured_audio_quality_priority(self):
         old_priority = download.SETTINGS.audioQualityPriority
