@@ -51,3 +51,46 @@ jobs:
 
       - name: Check installer script
         run: bash -n ../install.sh
+
+  gui-smoke:
+    name: GUI screenshot smoke
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: TIDALDL-PY
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: TIDALDL-PY/pyproject.toml
+
+      - name: Install GUI package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[gui]"
+
+      - name: Compile package
+        run: python -m compileall -q tidal_dl scripts/gui_screenshots.py
+
+      - name: Capture GUI screenshots
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python scripts/gui_screenshots.py --output gui-screenshots
+
+      - name: Upload GUI screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-screenshots
+          path: TIDALDL-PY/gui-screenshots/*.png

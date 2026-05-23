@@ -116,6 +116,44 @@ Legacy command:
 tidal-dl --help
 ```
 
+## Desktop GUI
+
+The modern desktop GUI is optional and uses PySide6/Qt so the CLI install stays
+lightweight.
+
+```bash
+python -m pip install "tidekeeper-cli[gui] @ git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
+tidekeeper-gui
+```
+
+From a local checkout:
+
+```bash
+cd tidekeeper-cli/TIDALDL-PY
+python -m pip install -e ".[gui]"
+tidekeeper-gui
+```
+
+The GUI is also available through the legacy-compatible CLI flag:
+
+```bash
+tidekeeper --gui
+```
+
+The desktop app exposes the same operational controls as the CLI: device login,
+manual token login, logout, direct URL/ID/text-file downloads, search, queueing,
+download path and format settings, quality settings, option toggles, language,
+TIDAL client selection, and doctor diagnostics.
+
+To validate the desktop UI without a login or network calls, run the automated
+screenshot smoke test. It renders every GUI screen with demo data and verifies
+that each capture is nonblank and correctly sized.
+
+```bash
+cd tidekeeper-cli/TIDALDL-PY
+python scripts/gui_screenshots.py
+```
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request guidelines and the

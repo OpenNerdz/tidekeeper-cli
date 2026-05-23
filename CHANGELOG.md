@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+## 2026.5.23.0 - 2026-05-23
+
 - Fall back through lower audio qualities when a requested stream manifest is blocked or unavailable, and show the fallback in track output.
 - Added `tidekeeper --doctor` to check config, token status, download path access, and local tools.
+- Added the modern PySide6 desktop GUI with feature parity for CLI auth, search, queue, direct downloads, settings, client selection, token login, and doctor diagnostics.
+- Added automated GUI screenshot smoke testing with dense demo data for layout validation.
+- Added cross-platform GUI executable builds and release uploads for Windows, Linux, and macOS.
 
 ## 2026.5.17.4 - 2026-05-18
 

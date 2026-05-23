@@ -15,8 +15,18 @@ import aigpy
 from .events import *
 from .settings import *
 from .diagnostics import runDoctor
-from .gui import startGui
 from .printf import Printf
+
+
+def startGui():
+    import importlib
+
+    try:
+        gui_module = importlib.import_module("tidal_dl.gui_app.__main__")
+    except ImportError:
+        Printf.err("GUI is not bundled with this executable. Run tidekeeper-gui or install tidekeeper-cli[gui].")
+        return 1
+    return gui_module.main()
 
 
 def mainCommand():

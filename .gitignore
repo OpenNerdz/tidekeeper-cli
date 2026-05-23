@@ -22,6 +22,7 @@ dist/
 TIDALDL-PY/build/
 TIDALDL-PY/dist/
 TIDALDL-PY/exe/
+TIDALDL-PY/gui-screenshots/
 
 # Local Tidekeeper config/runtime data
 tidal-dl.ini

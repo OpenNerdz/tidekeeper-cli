@@ -1,0 +1,2 @@
+"""Modern Tidekeeper desktop GUI."""
+

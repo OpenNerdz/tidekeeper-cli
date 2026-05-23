@@ -1,6 +1,13 @@
 name: Build exe
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -29,21 +36,49 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install wheel pyinstaller
-          python -m pip install -e .
+          python -m pip install -e ".[gui]"
         working-directory: TIDALDL-PY
 
       - name: Clean directory
         shell: bash
         run: |
-          rm -rf dist build tidal_dl.egg-info MANIFEST.in tidekeeper.spec
+          rm -rf dist build release-assets tidal_dl.egg-info MANIFEST.in tidekeeper.spec tidekeeper-gui.spec
         working-directory: TIDALDL-PY
 
       - name: Build tidekeeper
         run: pyinstaller -F tidal_dl/__main__.py -n tidekeeper
         working-directory: TIDALDL-PY
 
+      - name: Build tidekeeper-gui
+        shell: bash
+        run: |
+          GUI_FLAGS=""
+          if [[ "${{ runner.os }}" != "Linux" ]]; then
+            GUI_FLAGS="--windowed"
+          fi
+          pyinstaller -F $GUI_FLAGS tidal_dl/gui_app/__main__.py -n tidekeeper-gui
+        working-directory: TIDALDL-PY
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          EXT=""
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            EXT=".exe"
+          fi
+          cp "dist/tidekeeper${EXT}" "release-assets/tidekeeper-${{ runner.os }}${EXT}"
+          cp "dist/tidekeeper-gui${EXT}" "release-assets/tidekeeper-gui-${{ runner.os }}${EXT}"
+        working-directory: TIDALDL-PY
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: tidekeeper-${{ runner.os }}
-          path: TIDALDL-PY/dist/*
+          path: TIDALDL-PY/release-assets/*
+
+      - name: Upload release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TIDALDL-PY/release-assets/*

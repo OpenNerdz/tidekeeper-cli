@@ -47,8 +47,12 @@ setup(
                       "pydub",
                       "prettytable",
                       "lxml"],
+    extras_require={
+        "gui": ["PySide6>=6.5"],
+    },
     entry_points={'console_scripts': [
         'tidekeeper = tidal_dl:main',
         'tidal-dl = tidal_dl:main',
+        'tidekeeper-gui = tidal_dl.gui_app.__main__:main',
     ]}
 )
