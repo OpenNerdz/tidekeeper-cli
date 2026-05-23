@@ -15,6 +15,7 @@ import aigpy
 from .events import *
 from .settings import *
 from .diagnostics import runDoctor
+from .paths import getProfilePath, getTokenPath, openPath
 from .printf import Printf
 from .updater import run_update
 
@@ -37,6 +38,7 @@ def mainCommand():
                                    [
                                        "help", "version", "gui", "doctor",
                                        "update", "update-gui",
+                                       "paths", "open-output",
                                        "link=", "output=", "quality=", "quality-priority=", "resolution="
                                    ])
     except getopt.GetoptError as errmsg:
@@ -48,6 +50,8 @@ def mainCommand():
     showDoctor = False
     updateInstall = False
     updateGuiInstall = False
+    showPaths = False
+    openOutput = False
 
     for opt, val in opts:
         if opt in ('-h', '--help'):
@@ -61,6 +65,12 @@ def mainCommand():
             continue
         if opt == '--doctor':
             showDoctor = True
+            continue
+        if opt == '--paths':
+            showPaths = True
+            continue
+        if opt == '--open-output':
+            openOutput = True
             continue
         if opt == '--update':
             updateInstall = True
@@ -94,6 +104,18 @@ def mainCommand():
 
     if showDoctor:
         runDoctor()
+        return
+
+    if showPaths:
+        Printf.paths()
+        return
+
+    if openOutput:
+        try:
+            opened = openPath(SETTINGS.downloadPath)
+            Printf.success("Opened download folder: " + opened)
+        except OSError as exc:
+            Printf.err("Could not open download folder: " + str(exc))
         return
 
     if updateInstall:

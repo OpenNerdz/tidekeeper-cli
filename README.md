@@ -77,6 +77,8 @@ commands above.
 ```bash
 tidekeeper --help
 tidekeeper --doctor
+tidekeeper --paths
+tidekeeper --open-output
 tidekeeper --update
 tidekeeper
 tidekeeper -l "https://tidal.com/browse/track/70973230"
@@ -84,6 +86,10 @@ tidekeeper -l "https://tidal.com/browse/track/70973230"
 
 `tidekeeper --doctor` checks the saved client, token, download path, and local
 tools without starting a download.
+
+`tidekeeper --paths` prints the active download, config, token, and log paths.
+`tidekeeper --open-output` opens the current download folder in the system file
+manager.
 
 `tidekeeper --update` updates the terminal install from GitHub. Use
 `tidekeeper --update-gui` when the desktop GUI extra should be updated too.

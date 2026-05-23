@@ -289,10 +289,14 @@ class MainWindow(QMainWindow):
 
         self.download_path = QLineEdit()
         browse = _button("Browse")
+        open_folder = _button("Open")
+        open_folder.setToolTip("Open the current download folder.")
+        open_folder.clicked.connect(self.open_download_folder)
         browse.clicked.connect(self.browse_download_path)
         path_layout = QHBoxLayout()
         path_layout.setContentsMargins(0, 0, 0, 0)
         path_layout.addWidget(self.download_path, 1)
+        path_layout.addWidget(open_folder)
         path_layout.addWidget(browse)
 
         self.audio_quality = QComboBox()
@@ -778,6 +782,16 @@ class MainWindow(QMainWindow):
         path = QFileDialog.getExistingDirectory(self, "Download folder", self.download_path.text())
         if path:
             self.download_path.setText(path)
+
+    def open_download_folder(self):
+        path = self.download_path.text().strip() or SETTINGS.downloadPath
+        try:
+            opened = self.backend.open_download_folder(path)
+        except OSError as exc:
+            self.settings_status.setText(str(exc))
+            QMessageBox.warning(self, "Open folder failed", str(exc))
+            return
+        self.settings_status.setText(f"Opened {opened}")
 
     def selected_priority_order(self) -> List[str]:
         data = self.priority_preset.currentData()

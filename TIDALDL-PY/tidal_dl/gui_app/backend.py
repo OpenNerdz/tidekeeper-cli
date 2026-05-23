@@ -15,7 +15,7 @@ from ..diagnostics import runDoctor
 from ..enums import AudioQuality, Type, VideoQuality
 from ..events import loginByConfig, logout, start, start_type
 from ..lang.language import LANG
-from ..paths import getProfilePath, getTokenPath
+from ..paths import getProfilePath, getTokenPath, openPath
 from ..printf import VERSION
 from ..settings import SETTINGS, TOKEN
 from ..tidal import TIDAL_API
@@ -239,6 +239,9 @@ class TidekeeperBackend:
         LANG.setLang(SETTINGS.language)
         SETTINGS.save()
 
+    def open_download_folder(self, path: str = "") -> str:
+        return openPath(path or SETTINGS.downloadPath)
+
     def api_clients(self):
         return [
             {
@@ -379,6 +382,9 @@ class DemoBackend(TidekeeperBackend):
                 setattr(SETTINGS, key, value)
         SETTINGS.audioQualityPriority = audio_priority
         SETTINGS.audioQuality = audio_priority[0] if audio_priority else AudioQuality[values["audioQuality"]]
+
+    def open_download_folder(self, path: str = "") -> str:
+        return path or SETTINGS.downloadPath
 
     def api_clients(self):
         return [

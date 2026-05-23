@@ -86,6 +86,8 @@ class Printf(object):
                 ("--update", "Update terminal install"),
                 ("--update-gui", "Update terminal and GUI install"),
                 ("--doctor", "Check config, auth, and local tools"),
+                ("--paths", "Show download/config paths"),
+                ("--open-output", "Open download folder"),
                 ("-l, --link URL", "Download URL/ID/file"),
                 ("-o, --output PATH", "Set save folder"),
                 ("-q, --quality NAME", "Normal, High, HiFi, Master, Max, Atmos"),
@@ -104,12 +106,20 @@ class Printf(object):
             ["--update", "Update the terminal install"],
             ["--update-gui", "Update the terminal and GUI install"],
             ["--doctor", "Check config, auth, and local tools"],
+            ["--paths", "Show download/config paths"],
+            ["--open-output", "Open the download folder"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
             ["-q, --quality", "Set one audio quality: Normal, High, HiFi, Master, Max, Atmos"],
             ["--quality-priority", "Set fallback order, e.g. Atmos,High,Lossless,Low"],
             ["-r, --resolution", "Set video quality: P1080, P720, P480, P360"]
         ])
+        tb.set_style(prettytable.PLAIN_COLUMNS)
+        print(tb)
+
+    @staticmethod
+    def paths():
+        tb = Printf.__gettable__(["PATH", "VALUE"], getPathSummary())
         tb.set_style(prettytable.PLAIN_COLUMNS)
         print(tb)
 

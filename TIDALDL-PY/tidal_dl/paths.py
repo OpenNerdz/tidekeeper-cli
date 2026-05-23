@@ -9,6 +9,8 @@
 @Desc    :
 """
 import os
+import subprocess
+import sys
 import aigpy
 import datetime
 
@@ -228,3 +230,32 @@ def getTokenPath():
 
 def getProfilePath():
     return __getHomePath__() + '/.tidal-dl.json'
+
+
+def getConfigDirectory():
+    return os.path.dirname(getProfilePath()) or os.path.abspath("./")
+
+
+def getPathSummary():
+    return [
+        ("Download path", SETTINGS.downloadPath),
+        ("Config folder", getConfigDirectory()),
+        ("Settings file", getProfilePath()),
+        ("Token file", getTokenPath()),
+        ("Log file", getLogPath()),
+    ]
+
+
+def openPath(path):
+    target = os.path.abspath(os.path.expanduser(path or SETTINGS.downloadPath))
+    if os.path.isfile(target):
+        target = os.path.dirname(target)
+    os.makedirs(target, exist_ok=True)
+
+    if sys.platform.startswith("win"):
+        os.startfile(target)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", target])
+    else:
+        subprocess.Popen(["xdg-open", target])
+    return target

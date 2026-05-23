@@ -21,6 +21,7 @@ class CliUiTests(unittest.TestCase):
         self.assertIn("-l, --link URL\n  Download URL/ID/file", text)
         self.assertIn("--update\n  Update terminal install", text)
         self.assertIn("--doctor\n  Check config, auth, and local tools", text)
+        self.assertIn("--paths\n  Show download/config paths", text)
         self.assertNotIn("OPTION                  DESCRIPTION", text)
 
     def test_compact_dashboard_uses_one_command_per_line(self):
@@ -85,6 +86,22 @@ class CliUiTests(unittest.TestCase):
     def test_update_choice_aliases(self):
         self.assertEqual(tidal_dl.normalizeChoice("update"), "9")
         self.assertEqual(tidal_dl.normalizeChoice("upgrade"), "9")
+
+    def test_paths_flag_prints_paths_without_login(self):
+        with mock.patch("sys.argv", ["tidekeeper", "--paths"]):
+            with mock.patch.object(Printf, "paths") as paths:
+                tidal_dl.mainCommand()
+
+        paths.assert_called_once_with()
+
+    def test_open_output_flag_uses_download_path(self):
+        with mock.patch("sys.argv", ["tidekeeper", "--open-output"]):
+            with mock.patch("tidal_dl.openPath", return_value="/tmp/downloads") as open_path:
+                with mock.patch.object(Printf, "success") as success:
+                    tidal_dl.mainCommand()
+
+        open_path.assert_called_once_with(tidal_dl.SETTINGS.downloadPath)
+        success.assert_called_once()
 
 
 if __name__ == "__main__":
