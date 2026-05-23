@@ -358,11 +358,15 @@ class MainWindow(QMainWindow):
         self.refresh_login_button = _button("Refresh Saved Login")
         self.logout_button = _button("Log Out", danger=True)
         self.doctor_button = _button("Run Doctor")
+        self.update_terminal_button = _button("Update Terminal")
+        self.update_gui_button = _button("Update GUI", primary=True)
         self.device_login_button.clicked.connect(self.start_device_login)
         self.open_login_button.clicked.connect(self.open_login_url)
         self.refresh_login_button.clicked.connect(self.refresh_saved_login)
         self.logout_button.clicked.connect(self.logout)
         self.doctor_button.clicked.connect(self.run_doctor)
+        self.update_terminal_button.clicked.connect(lambda: self.update_tidekeeper(False))
+        self.update_gui_button.clicked.connect(lambda: self.update_tidekeeper(True))
         login_layout.addWidget(_label("Device login", "SectionTitle"), 0, 0)
         login_layout.addWidget(self.login_url, 0, 1, 1, 3)
         login_layout.addWidget(self.device_login_button, 1, 0)
@@ -370,6 +374,8 @@ class MainWindow(QMainWindow):
         login_layout.addWidget(self.refresh_login_button, 1, 2)
         login_layout.addWidget(self.logout_button, 1, 3)
         login_layout.addWidget(self.doctor_button, 2, 0)
+        login_layout.addWidget(self.update_terminal_button, 2, 1)
+        login_layout.addWidget(self.update_gui_button, 2, 2)
         layout.addWidget(_panel(login_layout))
 
         token_layout = QGridLayout()
@@ -662,6 +668,21 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(lambda output: self.account_log.append(output.strip()))
         worker.signals.error.connect(lambda message: self.account_log.append(message))
         self.thread_pool.start(worker)
+
+    def update_tidekeeper(self, include_gui: bool):
+        target = "terminal and GUI" if include_gui else "terminal"
+        self.account_log.append(f"Updating {target} install...")
+        self.update_terminal_button.setEnabled(False)
+        self.update_gui_button.setEnabled(False)
+        worker = TaskWorker(self.backend.update_app, include_gui)
+        worker.signals.result.connect(lambda output: self.account_log.append(output.strip()))
+        worker.signals.error.connect(lambda message: self.account_log.append(message))
+        worker.signals.finished.connect(self._update_finished)
+        self.thread_pool.start(worker)
+
+    def _update_finished(self):
+        self.update_terminal_button.setEnabled(True)
+        self.update_gui_button.setEnabled(True)
 
     def prepare_demo_state(self):
         self.search_text.setText("midnight")

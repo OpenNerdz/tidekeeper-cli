@@ -4,6 +4,7 @@ from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest import mock
 
+import tidal_dl
 from tidal_dl import printf
 from tidal_dl.printf import Printf
 
@@ -18,6 +19,7 @@ class CliUiTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertIn("-l, --link URL\n  Download URL/ID/file", text)
+        self.assertIn("--update\n  Update terminal install", text)
         self.assertIn("--doctor\n  Check config, auth, and local tools", text)
         self.assertNotIn("OPTION                  DESCRIPTION", text)
 
@@ -31,6 +33,7 @@ class CliUiTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("1 Login / refresh", text)
         self.assertIn("5 Quality", text)
+        self.assertIn("9 Update", text)
         self.assertIn("clear / cls Clear screen", text)
         self.assertNotIn("1 Login/refresh   2 Logout", text)
 
@@ -78,6 +81,10 @@ class CliUiTests(unittest.TestCase):
         self.assertIn("Dolby Atmos", text)
         self.assertIn("Fallback", text)
         self.assertIn("Max (requested format is unavailable)", text)
+
+    def test_update_choice_aliases(self):
+        self.assertEqual(tidal_dl.normalizeChoice("update"), "9")
+        self.assertEqual(tidal_dl.normalizeChoice("upgrade"), "9")
 
 
 if __name__ == "__main__":

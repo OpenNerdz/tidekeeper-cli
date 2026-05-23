@@ -16,6 +16,7 @@ from .events import *
 from .settings import *
 from .diagnostics import runDoctor
 from .printf import Printf
+from .updater import run_update
 
 
 def startGui():
@@ -35,15 +36,18 @@ def mainCommand():
                                    "hvgl:o:q:r:",
                                    [
                                        "help", "version", "gui", "doctor",
+                                       "update", "update-gui",
                                        "link=", "output=", "quality=", "quality-priority=", "resolution="
                                    ])
     except getopt.GetoptError as errmsg:
-        Printf.err(vars(errmsg)['msg'] + ". Use 'tidal-dl -h' for usage.")
+        Printf.err(vars(errmsg)['msg'] + ". Use 'tidekeeper -h' for usage.")
         return
 
     link = None
     showGui = False
     showDoctor = False
+    updateInstall = False
+    updateGuiInstall = False
 
     for opt, val in opts:
         if opt in ('-h', '--help'):
@@ -57,6 +61,13 @@ def mainCommand():
             continue
         if opt == '--doctor':
             showDoctor = True
+            continue
+        if opt == '--update':
+            updateInstall = True
+            continue
+        if opt == '--update-gui':
+            updateInstall = True
+            updateGuiInstall = True
             continue
         if opt in ('-l', '--link'):
             link = val
@@ -83,6 +94,10 @@ def mainCommand():
 
     if showDoctor:
         runDoctor()
+        return
+
+    if updateInstall:
+        updateTidekeeper(updateGuiInstall)
         return
 
     if not aigpy.path.mkdirs(SETTINGS.downloadPath):
@@ -128,11 +143,29 @@ def normalizeChoice(choice):
         "status": "8",
         "help": "8",
         "all": "8",
+        "update": "9",
+        "upgrade": "9",
         "clear": "clear",
         "cls": "clear",
     }
     clean = choice.strip()
     return aliases.get(clean.lower(), clean)
+
+
+def updateTidekeeper(include_gui=False):
+    Printf.info("Updating Tidekeeper...")
+    result = run_update(include_gui)
+    if result.command:
+        Printf.info("Command: " + " ".join(result.command))
+    if result.output.strip():
+        print(result.output.strip())
+    if result.ok:
+        Printf.success(result.message)
+    elif result.standalone:
+        Printf.info(result.message)
+    else:
+        Printf.err(result.message)
+    return result.ok
 
 
 def main():
@@ -180,6 +213,8 @@ def main():
                 loginByWeb()
         elif choice == "8":
             Printf.settings()
+        elif choice == "9":
+            updateTidekeeper(False)
         else:
             start(choice)
 

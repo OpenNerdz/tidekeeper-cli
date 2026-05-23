@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added in-app update actions for the terminal workflow and desktop GUI.
+
 ## 2026.5.23.0 - 2026-05-23
 
 - Fall back through lower audio qualities when a requested stream manifest is blocked or unavailable, and show the fallback in track output.

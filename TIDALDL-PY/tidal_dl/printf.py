@@ -83,6 +83,8 @@ class Printf(object):
                 ("-h, --help", "Show help"),
                 ("-v, --version", "Show version"),
                 ("-g, --gui", "Open GUI if available"),
+                ("--update", "Update terminal install"),
+                ("--update-gui", "Update terminal and GUI install"),
                 ("--doctor", "Check config, auth, and local tools"),
                 ("-l, --link URL", "Download URL/ID/file"),
                 ("-o, --output PATH", "Set save folder"),
@@ -99,6 +101,8 @@ class Printf(object):
             ["-h, --help", "Show this help"],
             ["-v, --version", "Show version"],
             ["-g, --gui", "Open the desktop GUI"],
+            ["--update", "Update the terminal install"],
+            ["--update-gui", "Update the terminal and GUI install"],
             ["--doctor", "Check config, auth, and local tools"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
@@ -182,12 +186,14 @@ class Printf(object):
             print("6 Options")
             print("7 Client")
             print("8 Full settings")
+            print("9 Update")
             print("0 Exit")
             print("clear / cls Clear screen")
         else:
             print("1 Login/refresh   2 Logout        3 Set token")
             print("4 Save folder     5 Quality       6 Options")
-            print("7 Client          8 Full settings 0 Exit")
+            print("7 Client          8 Full settings 9 Update")
+            print("0 Exit")
             print("clear/cls Clear screen")
         print("")
 

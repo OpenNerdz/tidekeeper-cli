@@ -77,12 +77,18 @@ commands above.
 ```bash
 tidekeeper --help
 tidekeeper --doctor
+tidekeeper --update
 tidekeeper
 tidekeeper -l "https://tidal.com/browse/track/70973230"
 ```
 
 `tidekeeper --doctor` checks the saved client, token, download path, and local
 tools without starting a download.
+
+`tidekeeper --update` updates the terminal install from GitHub. Use
+`tidekeeper --update-gui` when the desktop GUI extra should be updated too.
+Standalone release binaries direct you to the latest release asset instead of
+replacing the running executable.
 
 Dolby Atmos downloads are opt-in:
 
@@ -145,7 +151,8 @@ tidekeeper --gui
 The desktop app exposes the same operational controls as the terminal app:
 device login, manual token login, logout, direct URL/ID/text-file downloads,
 search, queueing, download path and format settings, quality settings, option
-toggles, language, TIDAL client selection, and doctor diagnostics.
+toggles, language, TIDAL client selection, doctor diagnostics, and updating the
+terminal or GUI install from inside the app.
 
 To validate the desktop UI without a login or network calls, run the automated
 screenshot smoke test. It renders every GUI screen with demo data and verifies

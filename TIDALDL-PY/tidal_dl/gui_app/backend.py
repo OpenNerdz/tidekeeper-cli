@@ -19,6 +19,7 @@ from ..paths import getProfilePath, getTokenPath
 from ..printf import VERSION
 from ..settings import SETTINGS, TOKEN
 from ..tidal import TIDAL_API
+from ..updater import run_update
 
 
 LogCallback = Optional[Callable[[str], None]]
@@ -278,6 +279,19 @@ class TidekeeperBackend:
             runDoctor()
         return output.getvalue()
 
+    def update_app(self, include_gui: bool = True) -> str:
+        result = run_update(include_gui)
+        output = result.output.strip()
+        lines = []
+        if result.command:
+            lines.append("Command: " + " ".join(result.command))
+        if output:
+            lines.append(output)
+        lines.append(result.message)
+        if not result.ok and not result.standalone:
+            raise RuntimeError("\n".join(lines))
+        return "\n".join(lines)
+
     def version(self) -> str:
         return VERSION
 
@@ -381,3 +395,7 @@ class DemoBackend(TidekeeperBackend):
             "[OK] Token - valid for country US\n"
             "[SUCCESS] Doctor finished.\n"
         )
+
+    def update_app(self, include_gui: bool = True) -> str:
+        target = "terminal and GUI" if include_gui else "terminal"
+        return f"Demo update completed for {target} install. Restart Tidekeeper to use the updated version."
