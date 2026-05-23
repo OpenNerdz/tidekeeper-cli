@@ -24,6 +24,16 @@ legacy-compatible command.
 
 This project does not aim to bypass access controls, subscription checks, or DRM.
 
+## GUI Gallery
+
+| Search | Queue |
+| --- | --- |
+| ![Tidekeeper search screen](docs/screenshots/search.png) | ![Tidekeeper queue screen](docs/screenshots/queue.png) |
+
+| Settings | Account |
+| --- | --- |
+| ![Tidekeeper settings screen](docs/screenshots/settings.png) | ![Tidekeeper account screen](docs/screenshots/account.png) |
+
 ## Install
 
 ```bash
