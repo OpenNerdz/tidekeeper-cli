@@ -655,9 +655,7 @@ def downloadVideo(video: Video, album: Album = None, playlist: Playlist = None):
 
 def __getTrackStream__(track_id):
     priority = SETTINGS.getDownloadAudioQualityPriority()
-    if len(priority) > 1:
-        return TIDAL_API.getStreamUrlByPriority(track_id, priority)
-    return TIDAL_API.getStreamUrl(track_id, priority[0])
+    return TIDAL_API.getStreamUrlByPriority(track_id, priority)
 
 
 def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, partSize=DEFAULT_PART_SIZE):

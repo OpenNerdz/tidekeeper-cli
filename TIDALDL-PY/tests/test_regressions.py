@@ -724,6 +724,28 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             download.SETTINGS.audioQualityPriority = old_priority
             download.SETTINGS.audioQuality = old_quality
 
+    def test_download_track_uses_single_quality_as_strict_priority(self):
+        old_priority = download.SETTINGS.audioQualityPriority
+        old_quality = download.SETTINGS.audioQuality
+        track = self._track()
+        try:
+            download.SETTINGS.audioQuality = AudioQuality.HiFi
+            download.SETTINGS.audioQualityPriority = []
+            expected_stream = self._stream()
+            with mock.patch.object(
+                download.TIDAL_API,
+                "getStreamUrlByPriority",
+                return_value=expected_stream,
+            ) as priority_get, mock.patch.object(download.TIDAL_API, "getStreamUrl") as ladder_get:
+                stream = download.__getTrackStream__(track.id)
+
+            self.assertIs(stream, expected_stream)
+            priority_get.assert_called_once_with(track.id, [AudioQuality.HiFi])
+            ladder_get.assert_not_called()
+        finally:
+            download.SETTINGS.audioQualityPriority = old_priority
+            download.SETTINGS.audioQuality = old_quality
+
     def test_quality_priority_command_sets_fallback_order(self):
         old_argv = sys.argv
         old_quality = tidal_dl.SETTINGS.audioQuality
