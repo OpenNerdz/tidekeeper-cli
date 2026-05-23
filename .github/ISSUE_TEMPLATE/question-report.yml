@@ -1,5 +1,5 @@
 name: Question
-description: Ask a Tidekeeper CLI question.
+description: Ask a Tidekeeper question.
 title: "[QUESTION]: "
 labels: question
 body:

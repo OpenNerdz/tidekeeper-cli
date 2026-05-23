@@ -1,13 +1,13 @@
 # Maintaining this fork
 
 This fork is intended for maintenance, packaging, and compatibility work around
-the Python command-line package now published as `tidekeeper-cli`.
+the Python app published as `tidekeeper`.
 
 ## Scope
 
-- Keep installation, packaging, and CLI startup working on supported Python versions.
+- Keep installation, packaging, terminal startup, and GUI startup working on supported Python versions.
 - Improve reliability around authenticated API requests, retries, timeouts, partial files, and error reporting.
-- Keep CI green for import, compile, and CLI smoke tests.
+- Keep CI green for import, compile, terminal, and GUI smoke tests.
 - Do not add behavior intended to bypass access controls, subscription checks, or DRM.
 
 ## Local development

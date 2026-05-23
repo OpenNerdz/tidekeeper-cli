@@ -19,21 +19,21 @@ def get_version():
 def get_long_description():
     if README_FILE.exists():
         return README_FILE.read_text(encoding="utf-8")
-    return "Maintained command-line fork of Tidal-Media-Downloader."
+    return "TIDAL downloader with terminal and desktop GUI workflows."
 
 
 setup(
-    name='tidekeeper-cli',
+    name='tidekeeper',
     version=get_version(),
     license="Apache2",
-    description="Maintained command-line fork of Tidal-Media-Downloader.",
+    description="TIDAL downloader with terminal and desktop GUI workflows.",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
 
-    author='Tidekeeper CLI maintainers',
-    url="https://github.com/OpenNerdz/tidekeeper-cli",
+    author='Tidekeeper maintainers',
+    url="https://github.com/OpenNerdz/tidekeeper",
     project_urls={
-        "Source": "https://github.com/OpenNerdz/tidekeeper-cli",
+        "Source": "https://github.com/OpenNerdz/tidekeeper",
         "Upstream": "https://github.com/yaronzz/Tidal-Media-Downloader",
     },
 

@@ -1,37 +1,39 @@
-![Tidekeeper](assets/tidekeeper-banner.png)
+![Tidekeeper](assets/tidekeeper-banner.png?raw=1&v=20260523)
 
-# Tidekeeper CLI
+# Tidekeeper
 
-Tidekeeper CLI is an unofficial maintained fork of
+Tidekeeper is an unofficial maintained fork of
 [yaronzz/Tidal-Media-Downloader](https://github.com/yaronzz/Tidal-Media-Downloader),
-focused on keeping the Python command-line tool installable, testable, and usable
-on current Python versions.
+focused on keeping TIDAL downloads reliable through a clean terminal workflow
+and a modern desktop GUI.
 
-The CLI is available as both `tidekeeper` and the legacy-compatible `tidal-dl`.
+The terminal app is available as `tidekeeper`; `tidal-dl` remains as a
+legacy-compatible command.
 
-[![CI](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/ci.yml)
-[![Build exe](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/build.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper-cli/actions/workflows/build.yml)
+[![CI](https://github.com/OpenNerdz/tidekeeper/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper/actions/workflows/ci.yml)
+[![Build](https://github.com/OpenNerdz/tidekeeper/actions/workflows/build.yml/badge.svg)](https://github.com/OpenNerdz/tidekeeper/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 ## Scope
 
-- Maintain the Python CLI fork with modern packaging and CI.
+- Maintain the Python app with modern packaging and CI.
 - Improve install reliability, authenticated API requests, retries, partial files,
   timeouts, and error reporting.
-- Keep compatibility with existing `tidal-dl` workflows where practical.
+- Keep terminal and desktop GUI behavior aligned.
+- Preserve compatibility with existing `tidal-dl` workflows where practical.
 
 This project does not aim to bypass access controls, subscription checks, or DRM.
 
 ## Install
 
 ```bash
-python -m pip install "git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
+python -m pip install "git+https://github.com/OpenNerdz/tidekeeper.git#subdirectory=TIDALDL-PY"
 ```
 
 Linux one-command installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper/main/install.sh | bash
 ```
 
 Then run:
@@ -42,11 +44,11 @@ tidekeeper
 
 ## Termux
 
-Termux support is for the CLI install path only.
+Termux support is for the terminal install path only.
 
 ```bash
 pkg update && pkg upgrade -y && pkg install -y curl
-curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/OpenNerdz/tidekeeper/main/install.sh | bash
 tidekeeper
 ```
 
@@ -118,39 +120,39 @@ tidal-dl --help
 
 ## Desktop GUI
 
-The modern desktop GUI is optional and uses PySide6/Qt so the CLI install stays
-lightweight.
+The modern desktop GUI is optional and uses PySide6/Qt so terminal-only installs
+stay lightweight.
 
 ```bash
-python -m pip install "tidekeeper-cli[gui] @ git+https://github.com/OpenNerdz/tidekeeper-cli.git#subdirectory=TIDALDL-PY"
+python -m pip install "tidekeeper[gui] @ git+https://github.com/OpenNerdz/tidekeeper.git#subdirectory=TIDALDL-PY"
 tidekeeper-gui
 ```
 
 From a local checkout:
 
 ```bash
-cd tidekeeper-cli/TIDALDL-PY
+cd tidekeeper/TIDALDL-PY
 python -m pip install -e ".[gui]"
 tidekeeper-gui
 ```
 
-The GUI is also available through the legacy-compatible CLI flag:
+The GUI is also available through the terminal app:
 
 ```bash
 tidekeeper --gui
 ```
 
-The desktop app exposes the same operational controls as the CLI: device login,
-manual token login, logout, direct URL/ID/text-file downloads, search, queueing,
-download path and format settings, quality settings, option toggles, language,
-TIDAL client selection, and doctor diagnostics.
+The desktop app exposes the same operational controls as the terminal app:
+device login, manual token login, logout, direct URL/ID/text-file downloads,
+search, queueing, download path and format settings, quality settings, option
+toggles, language, TIDAL client selection, and doctor diagnostics.
 
 To validate the desktop UI without a login or network calls, run the automated
 screenshot smoke test. It renders every GUI screen with demo data and verifies
 that each capture is nonblank and correctly sized.
 
 ```bash
-cd tidekeeper-cli/TIDALDL-PY
+cd tidekeeper/TIDALDL-PY
 python scripts/gui_screenshots.py
 ```
 
@@ -160,8 +162,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request guidelines and the
 expected local checks. See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ```bash
-git clone https://github.com/OpenNerdz/tidekeeper-cli.git
-cd tidekeeper-cli/TIDALDL-PY
+git clone https://github.com/OpenNerdz/tidekeeper.git
+cd tidekeeper/TIDALDL-PY
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip

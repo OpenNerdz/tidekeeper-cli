@@ -1,13 +1,13 @@
 # Contributing
 
-Thanks for helping maintain Tidekeeper CLI. Keep changes focused and include
+Thanks for helping maintain Tidekeeper. Keep changes focused and include
 tests for user-visible behavior or regressions.
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/OpenNerdz/tidekeeper-cli.git
-cd tidekeeper-cli/TIDALDL-PY
+git clone https://github.com/OpenNerdz/tidekeeper.git
+cd tidekeeper/TIDALDL-PY
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip

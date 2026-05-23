@@ -1,19 +1,20 @@
 name: Bug Report
-description: Report a Tidekeeper CLI bug.
+description: Report a Tidekeeper bug.
 title: "[BUG]: "
 labels: bug
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a Tidekeeper CLI issue. Please search existing issues first.
+        Thanks for reporting a Tidekeeper issue. Please search existing issues first.
         Redact tokens, cookies, account details, and personal information before posting logs.
   - type: dropdown
     id: tool
     attributes:
-      label: Which command?
+      label: Which entry point?
       options:
         - tidekeeper
+        - tidekeeper-gui
         - tidal-dl
         - install.sh
         - Termux install

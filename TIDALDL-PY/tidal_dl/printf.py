@@ -24,7 +24,7 @@ from .lang.language import *
 
 
 VERSION = '2026.5.23.0'
-PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper-cli'
+PROJECT_URL = 'https://github.com/OpenNerdz/tidekeeper'
 
 print_mutex = threading.Lock()
 
@@ -33,7 +33,7 @@ class Printf(object):
 
     @staticmethod
     def logo():
-        text = f"Tidekeeper CLI {VERSION}\n{PROJECT_URL}"
+        text = f"Tidekeeper {VERSION}\n{PROJECT_URL}"
         print(text)
         logging.info(text)
 
@@ -98,7 +98,7 @@ class Printf(object):
         tb = Printf.__gettable__(["OPTION", "DESCRIPTION"], [
             ["-h, --help", "Show this help"],
             ["-v, --version", "Show version"],
-            ["-g, --gui", "Open the simple GUI"],
+            ["-g, --gui", "Open the desktop GUI"],
             ["--doctor", "Check config, auth, and local tools"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
@@ -111,7 +111,7 @@ class Printf(object):
 
     @staticmethod
     def checkVersion():
-        onlineVer = aigpy.pip.getLastVersion('tidekeeper-cli')
+        onlineVer = aigpy.pip.getLastVersion('tidekeeper')
         if onlineVer is not None:
             icmp = aigpy.system.cmpVersion(onlineVer, VERSION)
             if icmp > 0:
@@ -166,7 +166,7 @@ class Printf(object):
         video = Printf.__enumName__(data.videoQuality)
 
         print("")
-        print(aigpy.cmd.green(f"Tidekeeper CLI {VERSION}"))
+        print(aigpy.cmd.green(f"Tidekeeper {VERSION}"))
         print(f"Account: {account} ({region})")
         print(f"Quality: audio {audio}, video {video}")
         print(f"Save to: {path}")

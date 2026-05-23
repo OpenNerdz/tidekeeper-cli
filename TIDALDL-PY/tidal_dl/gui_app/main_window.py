@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
         return page
 
     def _build_account_page(self) -> QWidget:
-        page, layout = self._page("Account", "Manage the saved TIDAL session used by the CLI and desktop app.")
+        page, layout = self._page("Account", "Manage the saved TIDAL session used by the terminal and desktop app.")
 
         status_layout = QGridLayout()
         status_layout.setContentsMargins(16, 16, 16, 16)

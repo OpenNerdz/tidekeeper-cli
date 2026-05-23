@@ -40,7 +40,7 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests
 
-      - name: Smoke test CLI
+      - name: Smoke test terminal commands
         run: |
           python -m tidal_dl --help
           tidekeeper --help

@@ -12,7 +12,7 @@ def main():
     except ImportError as exc:
         print(
             "Tidekeeper GUI requires PySide6. Install it with:\n"
-            "  python -m pip install 'tidekeeper-cli[gui]'\n"
+            "  python -m pip install 'tidekeeper[gui]'\n"
             "or from this checkout:\n"
             "  python -m pip install -e '.[gui]'",
             file=sys.stderr,

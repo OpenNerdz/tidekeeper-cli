@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${TIDEKEEPER_REPO_URL:-https://github.com/OpenNerdz/tidekeeper-cli.git}"
+REPO_URL="${TIDEKEEPER_REPO_URL:-https://github.com/OpenNerdz/tidekeeper.git}"
 PACKAGE_SUBDIR="TIDALDL-PY"
-INSTALL_ROOT="${TIDEKEEPER_INSTALL_ROOT:-$HOME/.local/share/tidekeeper-cli}"
+INSTALL_ROOT="${TIDEKEEPER_INSTALL_ROOT:-$HOME/.local/share/tidekeeper}"
 BIN_DIR="${TIDEKEEPER_BIN_DIR:-$HOME/.local/bin}"
 
 has_command() {
@@ -123,7 +123,7 @@ install_linux_package() {
 print_done() {
     cat <<MSG
 
-Tidekeeper CLI is installed.
+Tidekeeper is installed.
 
 Run:
   tidekeeper

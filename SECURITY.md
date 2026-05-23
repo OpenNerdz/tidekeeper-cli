@@ -22,7 +22,7 @@ from logs before sharing them.
 
 ## Token Handling
 
-Tidekeeper stores TIDAL access and refresh tokens locally so the CLI can reuse a
+Tidekeeper stores TIDAL access and refresh tokens locally so it can reuse a
 login session. Token files are written with owner-only permissions where the
 platform supports POSIX file modes. Treat token files as secrets and avoid
 including them in bug reports, screenshots, backups, or shell history.
