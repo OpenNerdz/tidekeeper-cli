@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
         self.results: List[SearchItem] = []
         self.queue: List[SearchItem] = []
         self.nav_buttons: Dict[str, QPushButton] = {}
+        self.active_workers = set()
         self.poll_timer = QTimer(self)
         self.poll_timer.timeout.connect(self._poll_device_login)
         self.login_polling = False
@@ -553,6 +554,19 @@ class MainWindow(QMainWindow):
             button.style().unpolish(button)
             button.style().polish(button)
 
+    def start_worker(self, worker):
+        self.active_workers.add(worker)
+
+        def cleanup():
+            self.active_workers.discard(worker)
+            try:
+                worker.signals.finished.disconnect(cleanup)
+            except (RuntimeError, TypeError):
+                pass
+
+        worker.signals.finished.connect(cleanup)
+        self.thread_pool.start(worker)
+
     def run_search(self):
         text = self.search_text.text().strip()
         kind = self.search_type.currentData()
@@ -568,7 +582,7 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(self.set_search_results)
         worker.signals.error.connect(self.show_search_error)
         worker.signals.finished.connect(self._search_finished)
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def set_search_results(self, items: List[SearchItem]):
         self.results = items
@@ -717,7 +731,7 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(lambda _: self.queue_status.setText("Downloads finished."))
         worker.signals.error.connect(self.show_download_error)
         worker.signals.finished.connect(self._download_finished)
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def _download_finished(self):
         self.download_in_progress = False
@@ -859,7 +873,7 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(lambda status: (self.refresh_auth_status(), self.account_log.append(status.label)))
         worker.signals.error.connect(lambda message: self.account_log.append(message))
         worker.signals.finished.connect(lambda: self.refresh_login_button.setEnabled(True))
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def start_device_login(self):
         self.device_login_button.setEnabled(False)
@@ -867,7 +881,7 @@ class MainWindow(QMainWindow):
         worker = TaskWorker(self.backend.start_device_login)
         worker.signals.result.connect(self._device_login_started)
         worker.signals.error.connect(self._device_login_error)
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def _device_login_started(self, challenge):
         self.login_url.setText(challenge.url)
@@ -889,7 +903,7 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(self._device_login_polled)
         worker.signals.error.connect(lambda message: self.account_log.append(message))
         worker.signals.finished.connect(self._device_login_poll_finished)
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def _device_login_polled(self, status):
         self.refresh_auth_status()
@@ -920,14 +934,14 @@ class MainWindow(QMainWindow):
         )
         worker.signals.result.connect(lambda status: (self.refresh_auth_status(), self.account_log.append(status.label)))
         worker.signals.error.connect(lambda message: self.account_log.append(message))
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def run_doctor(self):
         self.account_log.append("Running doctor...")
         worker = TaskWorker(self.backend.run_doctor)
         worker.signals.result.connect(lambda output: self.account_log.append(output.strip()))
         worker.signals.error.connect(lambda message: self.account_log.append(message))
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def update_tidekeeper(self, include_gui: bool):
         target = "terminal and GUI" if include_gui else "terminal"
@@ -938,7 +952,7 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(lambda output: self.account_log.append(output.strip()))
         worker.signals.error.connect(lambda message: self.account_log.append(message))
         worker.signals.finished.connect(self._update_finished)
-        self.thread_pool.start(worker)
+        self.start_worker(worker)
 
     def _update_finished(self):
         self.update_terminal_button.setEnabled(True)

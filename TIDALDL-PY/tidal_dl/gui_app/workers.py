@@ -13,6 +13,7 @@ class WorkerSignals(QObject):
 class TaskWorker(QRunnable):
     def __init__(self, fn, *args, **kwargs):
         super().__init__()
+        self.setAutoDelete(False)
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
@@ -32,6 +33,7 @@ class TaskWorker(QRunnable):
 class DownloadWorker(QRunnable):
     def __init__(self, backend, items):
         super().__init__()
+        self.setAutoDelete(False)
         self.backend = backend
         self.items = items
         self.signals = WorkerSignals()
