@@ -235,7 +235,39 @@ class TidekeeperBackend:
             return [to_search_item(parsed_kind, item)] if item else []
 
         result = TIDAL_API.search(text, kind)
+        if kind == Type.Null:
+            items = []
+            for result_kind in (Type.Artist, Type.Album, Type.Track, Type.Playlist, Type.Video):
+                items.extend(
+                    to_search_item(result_kind, item)
+                    for item in TIDAL_API.getSearchResultItems(result, result_kind)
+                )
+            return items
         return [to_search_item(kind, item) for item in TIDAL_API.getSearchResultItems(result, kind)]
+
+    def artist_tracks(self, artist: SearchItem) -> List[SearchItem]:
+        self._ensure_catalog_session()
+        artist_id = getattr(artist.source, "id", None) or artist.identifier
+        if artist_id is None or str(artist_id).strip() == "":
+            raise RuntimeError("Artist ID is missing.")
+
+        albums = TIDAL_API.getArtistAlbums(artist_id, includeEP=True)
+        seen_albums = set()
+        seen_tracks = set()
+        tracks = []
+        for album in albums:
+            album_id = getattr(album, "id", None)
+            if album_id is None or str(album_id).strip() == "" or album_id in seen_albums:
+                continue
+            seen_albums.add(album_id)
+            album_tracks, _ = TIDAL_API.getItems(album_id, Type.Album)
+            for track in album_tracks:
+                track_id = getattr(track, "id", None)
+                if track_id is None or str(track_id).strip() == "" or track_id in seen_tracks:
+                    continue
+                seen_tracks.add(track_id)
+                tracks.append(to_search_item(Type.Track, track))
+        return tracks
 
     def direct_item(self, text: str) -> SearchItem:
         label = os.path.basename(text) if os.path.exists(text) else text

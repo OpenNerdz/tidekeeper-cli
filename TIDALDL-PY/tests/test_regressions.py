@@ -311,6 +311,56 @@ class CliAuthPathRegressionTests(unittest.TestCase):
             for key, value in old_values.items():
                 setattr(events.TOKEN, key, value)
 
+    def test_gui_backend_artist_tracks_expands_albums_without_duplicates(self):
+        artist = SimpleNamespace(id=99, name="Artist")
+        album_one = SimpleNamespace(id=10, title="First")
+        album_two = SimpleNamespace(id=20, title="Second")
+        track_one = self._track()
+        track_one.id = 1
+        track_one.title = "One"
+        track_two = self._track()
+        track_two.id = 2
+        track_two.title = "Two"
+
+        def fake_items(album_id, etype):
+            self.assertEqual(etype, Type.Album)
+            if album_id == 10:
+                return [track_one, track_two], []
+            return [track_one], []
+
+        backend = TidekeeperBackend()
+        search_item = SimpleNamespace(source=artist, identifier="99")
+        with mock.patch.object(backend, "_ensure_catalog_session"), \
+             mock.patch.object(events.TIDAL_API, "getArtistAlbums", return_value=[album_one, album_one, album_two]), \
+             mock.patch.object(events.TIDAL_API, "getItems", side_effect=fake_items):
+            tracks = backend.artist_tracks(search_item)
+
+        self.assertEqual([item.identifier for item in tracks], ["1", "2"])
+        self.assertEqual([item.kind for item in tracks], [Type.Track, Type.Track])
+
+    def test_gui_backend_all_search_combines_catalog_types(self):
+        artist = SimpleNamespace(id=99, name="Artist")
+        album = self._album()
+        track = self._track()
+
+        def fake_items(result, etype):
+            return {
+                Type.Artist: [artist],
+                Type.Album: [album],
+                Type.Track: [track],
+                Type.Playlist: [],
+                Type.Video: [],
+            }[etype]
+
+        backend = TidekeeperBackend()
+        with mock.patch.object(backend, "_ensure_catalog_session"), \
+             mock.patch.object(events.TIDAL_API, "search", return_value=object()), \
+             mock.patch.object(events.TIDAL_API, "getSearchResultItems", side_effect=fake_items):
+            items = backend.search("artist", Type.Null)
+
+        self.assertEqual([item.kind for item in items], [Type.Artist, Type.Album, Type.Track])
+        self.assertEqual([item.title for item in items], ["Artist", "Album", "Track"])
+
     def test_invalid_api_key_index_returns_error_key_dict(self):
         self.assertFalse(apiKey.isItemValid(999))
         self.assertEqual(apiKey.getItem(999)["platform"], "None")

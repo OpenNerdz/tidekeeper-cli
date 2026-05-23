@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import webbrowser
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from PySide6.QtCore import Qt, QThreadPool, QTimer
 from PySide6.QtGui import QTextCursor
@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
         self.backend = backend
         self.thread_pool = QThreadPool.globalInstance()
         self.results: List[SearchItem] = []
+        self.result_history: List[Tuple[List[SearchItem], str]] = []
         self.queue: List[SearchItem] = []
         self.nav_buttons: Dict[str, QPushButton] = {}
         self.active_workers = set()
@@ -181,6 +182,7 @@ class MainWindow(QMainWindow):
         search_layout.setHorizontalSpacing(10)
         search_layout.setVerticalSpacing(10)
         self.search_type = QComboBox()
+        self.search_type.addItem("All", Type.Null)
         for item in (Type.Track, Type.Album, Type.Playlist, Type.Artist, Type.Video):
             self.search_type.addItem(item.name, item)
         self.search_type.setFixedWidth(150)
@@ -232,17 +234,22 @@ class MainWindow(QMainWindow):
         self.results_table.setColumnWidth(5, 120)
         self.results_table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.results_table.itemSelectionChanged.connect(self.update_result_actions)
+        self.results_table.itemDoubleClicked.connect(self.open_result_item)
         layout.addWidget(self.results_table, 1)
 
         action_layout = QHBoxLayout()
         self.search_status = _label("No search run yet.", "Muted")
         action_layout.addWidget(self.search_status, 1)
+        self.back_results_button = _button("Back")
         self.add_queue_button = _button("Add to Queue")
         self.download_now_button = _button("Download Now", primary=True)
+        self.back_results_button.setToolTip("Return to the previous result list.")
         self.add_queue_button.setToolTip("Add selected rows to the queue.")
         self.download_now_button.setToolTip("Add selected rows and start downloading.")
+        self.back_results_button.clicked.connect(self.show_previous_results)
         self.add_queue_button.clicked.connect(self.add_selected_to_queue)
         self.download_now_button.clicked.connect(self.download_selected)
+        action_layout.addWidget(self.back_results_button)
         action_layout.addWidget(self.add_queue_button)
         action_layout.addWidget(self.download_now_button)
         layout.addLayout(action_layout)
@@ -575,8 +582,10 @@ class MainWindow(QMainWindow):
             return
         if self.search_in_progress:
             return
+        self.result_history = []
         self.search_in_progress = True
         self.update_search_action()
+        self.update_result_actions()
         self.search_status.setText("Searching...")
         worker = TaskWorker(self.backend.search, text, kind)
         worker.signals.result.connect(self.set_search_results)
@@ -584,7 +593,7 @@ class MainWindow(QMainWindow):
         worker.signals.finished.connect(self._search_finished)
         self.start_worker(worker)
 
-    def set_search_results(self, items: List[SearchItem]):
+    def set_search_results(self, items: List[SearchItem], status_text: str | None = None):
         self.results = items
         self.results_table.setSortingEnabled(False)
         self.results_table.setRowCount(len(items))
@@ -598,16 +607,49 @@ class MainWindow(QMainWindow):
                     cell.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 self.results_table.setItem(row, col, cell)
         self.results_table.setSortingEnabled(True)
-        self.search_status.setText(f"{len(items)} result{'s' if len(items) != 1 else ''}.")
+        self.search_status.setText(status_text or f"{len(items)} result{'s' if len(items) != 1 else ''}.")
         self.update_result_actions()
 
     def _search_finished(self):
         self.search_in_progress = False
         self.update_search_action()
+        self.update_result_actions()
 
     def show_search_error(self, message: str):
         self.search_status.setText(message)
         QMessageBox.warning(self, "Search failed", message)
+
+    def open_result_item(self, cell: QTableWidgetItem):
+        item = self._row_item(self.results_table, cell.row())
+        if item is None:
+            return
+        if item.kind != Type.Artist:
+            self.search_status.setText("Double-click Artist results to view tracks.")
+            return
+        if self.search_in_progress:
+            return
+
+        self.result_history.append((list(self.results), self.search_status.text()))
+        self.search_in_progress = True
+        self.search_status.setText(f"Loading tracks by {item.title}...")
+        self.update_search_action()
+        self.update_result_actions()
+        worker = TaskWorker(self.backend.artist_tracks, item)
+        worker.signals.result.connect(
+            lambda items, artist=item.title: self.set_search_results(
+                items,
+                f"{len(items)} track{'s' if len(items) != 1 else ''} by {artist}.",
+            )
+        )
+        worker.signals.error.connect(self.show_search_error)
+        worker.signals.finished.connect(self._search_finished)
+        self.start_worker(worker)
+
+    def show_previous_results(self):
+        if not self.result_history or self.search_in_progress:
+            return
+        items, status = self.result_history.pop()
+        self.set_search_results(items, status)
 
     def selected_result_items(self) -> List[SearchItem]:
         rows = sorted({index.row() for index in self.results_table.selectionModel().selectedRows()})
@@ -753,6 +795,7 @@ class MainWindow(QMainWindow):
 
     def update_result_actions(self):
         has_selection = bool(self.results_table.selectionModel().selectedRows())
+        self.back_results_button.setEnabled(bool(self.result_history) and not self.search_in_progress)
         self.add_queue_button.setEnabled(has_selection)
         self.download_now_button.setEnabled(has_selection and not self.download_in_progress)
 
