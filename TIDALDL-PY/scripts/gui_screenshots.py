@@ -44,17 +44,41 @@ def _validate_interactions(window) -> list[str]:
         if window.selected_priority_order() != ["HiFi", "High", "Normal"]:
             failures.append("settings: selected fallback priority resolves the wrong order")
 
+    window.search_text.clear()
+    if window.search_button.isEnabled():
+        failures.append("search: search button is enabled without input")
+    window.search_text.setText("midnight")
+    if not window.search_button.isEnabled():
+        failures.append("search: search button is disabled with input")
+
+    window.direct_text.clear()
+    if window.direct_queue_button.isEnabled() or window.direct_download_button.isEnabled():
+        failures.append("search: direct actions are enabled without input")
+    window.direct_text.setText("https://tidal.com/browse/track/70973230")
+    if not window.direct_queue_button.isEnabled() or not window.direct_download_button.isEnabled():
+        failures.append("search: direct actions are disabled with input")
+
     if window.results:
+        window.results_table.clearSelection()
+        if window.add_queue_button.isEnabled() or window.download_now_button.isEnabled():
+            failures.append("search: row actions are enabled without a selected result")
         window.results_table.sortItems(1)
         window.results_table.selectRow(0)
+        if not window.add_queue_button.isEnabled() or not window.download_now_button.isEnabled():
+            failures.append("search: row actions are disabled with a selected result")
         selected = window.selected_result_items()
         row_item = window._row_item(window.results_table, 0)
         if not selected or selected[0] is not row_item:
             failures.append("search: sorted selection resolves the wrong item")
 
     if window.queue:
+        window.queue_table.clearSelection()
+        if window.remove_queue_button.isEnabled():
+            failures.append("queue: remove is enabled without a selected item")
         window.queue_table.sortItems(1)
         window.queue_table.selectRow(0)
+        if not window.remove_queue_button.isEnabled():
+            failures.append("queue: remove is disabled with a selected item")
         row_item = window._row_item(window.queue_table, 0)
         before = len(window.queue)
         window.remove_selected_queue_items()

@@ -5,6 +5,7 @@
 - Added in-app update actions for the terminal workflow and desktop GUI.
 - Added a GUI fallback-order preset selector for audio quality priority.
 - Reorganized GUI pages into clearer workflow sections for faster scanning.
+- Improved GUI action states so unavailable search, direct download, and queue actions are disabled until usable.
 - Improved GUI account maintenance layout and guarded against duplicate background actions.
 - Fixed sorted GUI tables so selected search and queue rows resolve the intended item.
 

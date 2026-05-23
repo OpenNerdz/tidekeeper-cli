@@ -94,6 +94,7 @@ class MainWindow(QMainWindow):
         self.poll_timer.timeout.connect(self._poll_device_login)
         self.login_polling = False
         self.login_poll_inflight = False
+        self.search_in_progress = False
         self.download_in_progress = False
 
         self.setWindowTitle("Tidekeeper")
@@ -104,6 +105,7 @@ class MainWindow(QMainWindow):
         self.version_label.setText(f"v{self.backend.version()}")
         self.refresh_settings()
         self.refresh_auth_status()
+        self.update_action_states()
         self.show_screen("search")
 
     def _build(self):
@@ -187,6 +189,7 @@ class MainWindow(QMainWindow):
         self.search_button.setToolTip("Search TIDAL for the selected content type.")
         self.search_button.clicked.connect(self.run_search)
         self.search_text.returnPressed.connect(self.run_search)
+        self.search_text.textChanged.connect(self.update_search_action)
         search_layout.addWidget(_panel_title("Catalog search"), 0, 0)
         search_layout.addWidget(self.search_type, 0, 1)
         search_layout.addWidget(self.search_text, 0, 2)
@@ -209,6 +212,7 @@ class MainWindow(QMainWindow):
         self.direct_browse_button.clicked.connect(self.browse_direct_file)
         self.direct_queue_button.clicked.connect(self.add_direct_to_queue)
         self.direct_download_button.clicked.connect(self.download_direct)
+        self.direct_text.textChanged.connect(self.update_direct_actions)
         direct_layout.addWidget(_panel_title("Direct input"), 0, 0)
         direct_layout.addWidget(self.direct_text, 0, 1)
         direct_layout.addWidget(self.direct_browse_button, 0, 2)
@@ -226,6 +230,7 @@ class MainWindow(QMainWindow):
         self.results_table.setColumnWidth(4, 90)
         self.results_table.setColumnWidth(5, 120)
         self.results_table.setSelectionMode(QTableWidget.ExtendedSelection)
+        self.results_table.itemSelectionChanged.connect(self.update_result_actions)
         layout.addWidget(self.results_table, 1)
 
         action_layout = QHBoxLayout()
@@ -252,6 +257,7 @@ class MainWindow(QMainWindow):
         self.queue_table.setColumnWidth(3, 150)
         self.queue_table.setColumnWidth(4, 120)
         self.queue_table.setSelectionMode(QTableWidget.ExtendedSelection)
+        self.queue_table.itemSelectionChanged.connect(self.update_queue_actions)
         layout.addWidget(self.queue_table, 1)
 
         action_layout = QHBoxLayout()
@@ -549,12 +555,15 @@ class MainWindow(QMainWindow):
         if not text:
             self.search_status.setText("Enter a search term or TIDAL URL.")
             return
-        self.search_button.setEnabled(False)
+        if self.search_in_progress:
+            return
+        self.search_in_progress = True
+        self.update_search_action()
         self.search_status.setText("Searching...")
         worker = TaskWorker(self.backend.search, text, kind)
         worker.signals.result.connect(self.set_search_results)
         worker.signals.error.connect(self.show_search_error)
-        worker.signals.finished.connect(lambda: self.search_button.setEnabled(True))
+        worker.signals.finished.connect(self._search_finished)
         self.thread_pool.start(worker)
 
     def set_search_results(self, items: List[SearchItem]):
@@ -572,6 +581,11 @@ class MainWindow(QMainWindow):
                 self.results_table.setItem(row, col, cell)
         self.results_table.setSortingEnabled(True)
         self.search_status.setText(f"{len(items)} result{'s' if len(items) != 1 else ''}.")
+        self.update_result_actions()
+
+    def _search_finished(self):
+        self.search_in_progress = False
+        self.update_search_action()
 
     def show_search_error(self, message: str):
         self.search_status.setText(message)
@@ -659,6 +673,7 @@ class MainWindow(QMainWindow):
                 self.queue_table.setItem(row, col, cell)
         self.queue_table.setSortingEnabled(True)
         self.queue_status.setText(f"{len(self.queue)} item{'s' if len(self.queue) != 1 else ''} in queue.")
+        self.update_queue_actions()
 
     def remove_selected_queue_items(self):
         rows = sorted({index.row() for index in self.queue_table.selectionModel().selectedRows()})
@@ -691,7 +706,7 @@ class MainWindow(QMainWindow):
             self.queue_status.setText("A download is already running.")
             return
         self.download_in_progress = True
-        self._set_download_controls_enabled(False)
+        self.update_action_states()
         self.download_log.append("Starting downloads")
         worker = DownloadWorker(self.backend, items)
         worker.signals.log.connect(self.append_download_log)
@@ -700,19 +715,35 @@ class MainWindow(QMainWindow):
         worker.signals.finished.connect(self._download_finished)
         self.thread_pool.start(worker)
 
-    def _set_download_controls_enabled(self, enabled: bool):
-        for button in (
-            self.direct_download_button,
-            self.download_now_button,
-            self.start_queue_button,
-            self.remove_queue_button,
-            self.clear_queue_button,
-        ):
-            button.setEnabled(enabled)
-
     def _download_finished(self):
         self.download_in_progress = False
-        self._set_download_controls_enabled(True)
+        self.update_action_states()
+
+    def update_action_states(self):
+        self.update_search_action()
+        self.update_direct_actions()
+        self.update_result_actions()
+        self.update_queue_actions()
+
+    def update_search_action(self):
+        self.search_button.setEnabled(bool(self.search_text.text().strip()) and not self.search_in_progress)
+
+    def update_direct_actions(self):
+        has_input = bool(self.direct_text.text().strip())
+        self.direct_queue_button.setEnabled(has_input)
+        self.direct_download_button.setEnabled(has_input and not self.download_in_progress)
+
+    def update_result_actions(self):
+        has_selection = bool(self.results_table.selectionModel().selectedRows())
+        self.add_queue_button.setEnabled(has_selection)
+        self.download_now_button.setEnabled(has_selection and not self.download_in_progress)
+
+    def update_queue_actions(self):
+        has_queue = bool(self.queue)
+        has_selection = bool(self.queue_table.selectionModel().selectedRows())
+        self.remove_queue_button.setEnabled(has_selection and not self.download_in_progress)
+        self.clear_queue_button.setEnabled(has_queue and not self.download_in_progress)
+        self.start_queue_button.setEnabled(has_queue and not self.download_in_progress)
 
     def append_download_log(self, text: str):
         cursor = self.download_log.textCursor()
@@ -907,6 +938,7 @@ class MainWindow(QMainWindow):
             self.results_table.selectRow(0)
             self.queue = self.results[:28]
             self.refresh_queue_table()
+            self.queue_table.selectRow(0)
             self.download_log.setPlainText(
                 "\n".join(
                     f"Queued {item.title} - waiting for download slot"
