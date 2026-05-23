@@ -143,6 +143,47 @@ class TidekeeperBackend:
             SETTINGS.apiKeyIndex = apiKey.getDefaultIndex()
             SETTINGS.save()
         TIDAL_API.apiKey = apiKey.getItem(SETTINGS.apiKeyIndex)
+        self._sync_api_login_key_from_token()
+
+    def _sync_api_login_key_from_token(self):
+        TIDAL_API.key.userId = TOKEN.userid
+        TIDAL_API.key.countryCode = TOKEN.countryCode
+        TIDAL_API.key.accessToken = TOKEN.accessToken
+        TIDAL_API.key.refreshToken = TOKEN.refreshToken
+
+    def _save_api_login_key_to_token(self, expires_after: float | None = None):
+        TOKEN.userid = TIDAL_API.key.userId
+        TOKEN.countryCode = TIDAL_API.key.countryCode
+        TOKEN.accessToken = TIDAL_API.key.accessToken
+        TOKEN.refreshToken = TIDAL_API.key.refreshToken
+        if expires_after is not None:
+            TOKEN.expiresAfter = expires_after
+        TOKEN.save()
+
+    def _ensure_catalog_session(self):
+        self._sync_api_login_key_from_token()
+        if aigpy.string.isNull(TOKEN.accessToken):
+            raise RuntimeError("Sign in before searching or downloading.")
+
+        if TOKEN.expiresAfter and TOKEN.expiresAfter <= time.time() + 60:
+            if loginByConfig():
+                self._sync_api_login_key_from_token()
+            else:
+                raise RuntimeError("Saved login expired. Sign in again from the Account page.")
+
+        if not aigpy.string.isNull(TIDAL_API.key.countryCode):
+            return
+
+        try:
+            TIDAL_API.loginByAccessToken(TOKEN.accessToken, TOKEN.userid)
+            self._save_api_login_key_to_token()
+        except Exception:
+            if not aigpy.string.isNull(TOKEN.refreshToken) and TIDAL_API.refreshAccessToken(TOKEN.refreshToken):
+                self._save_api_login_key_to_token(time.time() + int(TIDAL_API.key.expiresIn))
+
+        self._sync_api_login_key_from_token()
+        if aigpy.string.isNull(TIDAL_API.key.countryCode):
+            raise RuntimeError("Saved login is missing country data. Refresh saved login or sign in again from Account.")
 
     def auth_status(self) -> AuthStatus:
         return AuthStatus(
@@ -154,6 +195,7 @@ class TidekeeperBackend:
 
     def refresh_saved_login(self) -> AuthStatus:
         loginByConfig()
+        self._sync_api_login_key_from_token()
         return self.auth_status()
 
     def start_device_login(self) -> AuthChallenge:
@@ -169,12 +211,7 @@ class TidekeeperBackend:
         if not TIDAL_API.checkAuthStatus():
             return self.auth_status()
 
-        TOKEN.userid = TIDAL_API.key.userId
-        TOKEN.countryCode = TIDAL_API.key.countryCode
-        TOKEN.accessToken = TIDAL_API.key.accessToken
-        TOKEN.refreshToken = TIDAL_API.key.refreshToken
-        TOKEN.expiresAfter = time.time() + int(TIDAL_API.key.expiresIn)
-        TOKEN.save()
+        self._save_api_login_key_to_token(time.time() + int(TIDAL_API.key.expiresIn))
         return self.auth_status()
 
     def logout(self) -> AuthStatus:
@@ -189,6 +226,7 @@ class TidekeeperBackend:
         if os.path.exists(text):
             return [self.direct_item(text)]
 
+        self._ensure_catalog_session()
         if text.startswith("http"):
             parsed_kind, item_id = TIDAL_API.parseUrl(text)
             if parsed_kind == Type.Null:
@@ -204,6 +242,7 @@ class TidekeeperBackend:
         return SearchItem(Type.Null, label, "", "Direct", text, "", text)
 
     def download(self, item: SearchItem, log: LogCallback = None):
+        self._ensure_catalog_session()
         callback = log or (lambda text: None)
         writer = _CallbackWriter(callback)
         with contextlib.redirect_stdout(writer), contextlib.redirect_stderr(writer):
@@ -272,10 +311,8 @@ class TidekeeperBackend:
         TIDAL_API.loginByAccessToken(access_token, TOKEN.userid)
         TOKEN.accessToken = access_token
         TOKEN.refreshToken = refresh_token.strip() or TOKEN.refreshToken
-        TOKEN.userid = TIDAL_API.key.userId
-        TOKEN.countryCode = TIDAL_API.key.countryCode
         TOKEN.expiresAfter = 0
-        TOKEN.save()
+        self._save_api_login_key_to_token(TOKEN.expiresAfter)
         return self.auth_status()
 
     def run_doctor(self) -> str:

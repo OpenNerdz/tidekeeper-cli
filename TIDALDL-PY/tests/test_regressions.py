@@ -2,6 +2,7 @@ import base64
 import json
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,7 @@ from unittest import mock
 import tidal_dl
 from tidal_dl import apiKey, download, events, paths
 from tidal_dl.enums import AudioQuality, Type, VideoQuality
+from tidal_dl.gui_app.backend import TidekeeperBackend
 from tidal_dl.model import StreamUrl
 from tidal_dl.settings import Settings
 from tidal_dl.tidal import TidalAPI, TidalApiError
@@ -231,6 +233,80 @@ class CliAuthPathRegressionTests(unittest.TestCase):
                 self.assertTrue(events.loginByConfig())
 
             self.assertEqual(events.TOKEN.refreshToken, "new-refresh")
+        finally:
+            for key, value in old_values.items():
+                setattr(events.TOKEN, key, value)
+
+    def test_gui_backend_syncs_saved_country_code_before_search(self):
+        old_values = {
+            "userid": events.TOKEN.userid,
+            "countryCode": events.TOKEN.countryCode,
+            "accessToken": events.TOKEN.accessToken,
+            "refreshToken": events.TOKEN.refreshToken,
+            "expiresAfter": events.TOKEN.expiresAfter,
+            "api_user": events.TIDAL_API.key.userId,
+            "api_country": events.TIDAL_API.key.countryCode,
+            "api_access": events.TIDAL_API.key.accessToken,
+            "api_refresh": events.TIDAL_API.key.refreshToken,
+        }
+        try:
+            events.TOKEN.userid = "user-123"
+            events.TOKEN.countryCode = "GB"
+            events.TOKEN.accessToken = "saved-access"
+            events.TOKEN.refreshToken = "saved-refresh"
+            events.TOKEN.expiresAfter = time.time() + 3600
+            events.TIDAL_API.key.userId = None
+            events.TIDAL_API.key.countryCode = None
+            events.TIDAL_API.key.accessToken = None
+            events.TIDAL_API.key.refreshToken = None
+
+            backend = TidekeeperBackend()
+            backend._ensure_catalog_session()
+
+            self.assertEqual(events.TIDAL_API.key.userId, "user-123")
+            self.assertEqual(events.TIDAL_API.key.countryCode, "GB")
+            self.assertEqual(events.TIDAL_API.key.accessToken, "saved-access")
+        finally:
+            for key, value in old_values.items():
+                if key.startswith("api_"):
+                    attr = {
+                        "api_user": "userId",
+                        "api_country": "countryCode",
+                        "api_access": "accessToken",
+                        "api_refresh": "refreshToken",
+                    }[key]
+                    setattr(events.TIDAL_API.key, attr, value)
+                else:
+                    setattr(events.TOKEN, key, value)
+
+    def test_gui_backend_recovers_missing_saved_country_code(self):
+        old_values = {
+            "userid": events.TOKEN.userid,
+            "countryCode": events.TOKEN.countryCode,
+            "accessToken": events.TOKEN.accessToken,
+            "refreshToken": events.TOKEN.refreshToken,
+            "expiresAfter": events.TOKEN.expiresAfter,
+        }
+        try:
+            events.TOKEN.userid = "user-123"
+            events.TOKEN.countryCode = None
+            events.TOKEN.accessToken = "saved-access"
+            events.TOKEN.refreshToken = "saved-refresh"
+            events.TOKEN.expiresAfter = time.time() + 3600
+
+            def fake_login(access_token, userid=None):
+                events.TIDAL_API.key.userId = userid
+                events.TIDAL_API.key.countryCode = "GB"
+                events.TIDAL_API.key.accessToken = access_token
+                events.TIDAL_API.key.refreshToken = events.TOKEN.refreshToken
+
+            backend = TidekeeperBackend()
+            with mock.patch.object(events.TIDAL_API, "loginByAccessToken", fake_login), \
+                 mock.patch.object(events.TOKEN, "save"):
+                backend._ensure_catalog_session()
+
+            self.assertEqual(events.TOKEN.countryCode, "GB")
+            self.assertEqual(events.TIDAL_API.key.countryCode, "GB")
         finally:
             for key, value in old_values.items():
                 setattr(events.TOKEN, key, value)
