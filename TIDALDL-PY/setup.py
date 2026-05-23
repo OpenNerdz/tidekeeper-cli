@@ -19,14 +19,14 @@ def get_version():
 def get_long_description():
     if README_FILE.exists():
         return README_FILE.read_text(encoding="utf-8")
-    return "TIDAL downloader with terminal and desktop GUI workflows."
+    return "Maintained Tidal-Media-Downloader fork with terminal and desktop GUI workflows."
 
 
 setup(
     name='tidekeeper',
     version=get_version(),
     license="Apache2",
-    description="TIDAL downloader with terminal and desktop GUI workflows.",
+    description="Maintained Tidal-Media-Downloader fork with terminal and desktop GUI workflows.",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
 
