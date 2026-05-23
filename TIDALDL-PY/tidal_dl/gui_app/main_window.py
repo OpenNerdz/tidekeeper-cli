@@ -535,7 +535,7 @@ class MainWindow(QMainWindow):
     def _setup_table(self, table: QTableWidget, headers: List[str]):
         table.setHorizontalHeaderLabels(headers)
         table.verticalHeader().setVisible(False)
-        table.setAlternatingRowColors(False)
+        table.setAlternatingRowColors(True)
         table.setShowGrid(False)
         table.setSortingEnabled(True)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
