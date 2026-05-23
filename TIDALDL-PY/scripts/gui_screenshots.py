@@ -31,6 +31,41 @@ def _is_nonblank(image) -> bool:
     return False
 
 
+def _validate_interactions(window) -> list[str]:
+    failures = []
+    preset = window.priority_preset.currentText()
+    if "Max" not in preset or "HiFi" not in preset or "High" not in preset:
+        failures.append("settings: saved fallback priority is not reflected")
+
+    selected_then_lower = window.priority_preset.findText("Selected quality, then lower")
+    if selected_then_lower >= 0:
+        window.audio_quality.setCurrentText("HiFi")
+        window.priority_preset.setCurrentIndex(selected_then_lower)
+        if window.selected_priority_order() != ["HiFi", "High", "Normal"]:
+            failures.append("settings: selected fallback priority resolves the wrong order")
+
+    if window.results:
+        window.results_table.sortItems(1)
+        window.results_table.selectRow(0)
+        selected = window.selected_result_items()
+        row_item = window._row_item(window.results_table, 0)
+        if not selected or selected[0] is not row_item:
+            failures.append("search: sorted selection resolves the wrong item")
+
+    if window.queue:
+        window.queue_table.sortItems(1)
+        window.queue_table.selectRow(0)
+        row_item = window._row_item(window.queue_table, 0)
+        before = len(window.queue)
+        window.remove_selected_queue_items()
+        if row_item is None or any(item is row_item for item in window.queue) or len(window.queue) != before - 1:
+            failures.append("queue: sorted removal resolves the wrong item")
+        if row_item is not None:
+            window.queue.append(row_item)
+        window.refresh_queue_table()
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Capture and validate Tidekeeper GUI screens.")
     parser.add_argument(
@@ -67,7 +102,10 @@ def main() -> int:
     window.show()
     app.processEvents()
 
-    failures = []
+    failures = _validate_interactions(window)
+    window.refresh_settings()
+    window.prepare_demo_state()
+    app.processEvents()
     for screen in SCREEN_ORDER:
         window.show_screen(screen)
         app.processEvents()

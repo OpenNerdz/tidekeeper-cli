@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Added in-app update actions for the terminal workflow and desktop GUI.
+- Added a GUI fallback-order preset selector for audio quality priority.
+- Improved GUI account maintenance layout and guarded against duplicate background actions.
+- Fixed sorted GUI tables so selected search and queue rows resolve the intended item.
 
 ## 2026.5.23.0 - 2026-05-23
 

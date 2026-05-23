@@ -213,8 +213,10 @@ class TidekeeperBackend:
                 start_type(item.kind, item.source)
 
     def save_settings(self, values: dict):
+        audio_priority = SETTINGS.getAudioQualityPriority(values.get("audioQualityPriority", []))
         SETTINGS.downloadPath = values["downloadPath"]
-        SETTINGS.audioQuality = AudioQuality[values["audioQuality"]]
+        SETTINGS.audioQuality = audio_priority[0] if audio_priority else AudioQuality[values["audioQuality"]]
+        SETTINGS.audioQualityPriority = audio_priority
         SETTINGS.videoQuality = VideoQuality[values["videoQuality"]]
         SETTINGS.checkExist = values["checkExist"]
         SETTINGS.includeEP = values["includeEP"]
@@ -300,6 +302,7 @@ class DemoBackend(TidekeeperBackend):
     def initialize(self):
         SETTINGS.downloadPath = "/Music/Tidekeeper"
         SETTINGS.audioQuality = AudioQuality.Max
+        SETTINGS.audioQualityPriority = [AudioQuality.Max, AudioQuality.HiFi, AudioQuality.High]
         SETTINGS.videoQuality = VideoQuality.P1080
         SETTINGS.checkExist = True
         SETTINGS.includeEP = True
@@ -370,9 +373,12 @@ class DemoBackend(TidekeeperBackend):
             log("Demo download completed\n")
 
     def save_settings(self, values: dict):
+        audio_priority = SETTINGS.getAudioQualityPriority(values.get("audioQualityPriority", []))
         for key, value in values.items():
             if hasattr(SETTINGS, key):
                 setattr(SETTINGS, key, value)
+        SETTINGS.audioQualityPriority = audio_priority
+        SETTINGS.audioQuality = audio_priority[0] if audio_priority else AudioQuality[values["audioQuality"]]
 
     def api_clients(self):
         return [
