@@ -1,4 +1,4 @@
-![Tidekeeper CLI + GUI](assets/tidekeeper-banner.png)
+![Tidekeeper](assets/tidekeeper-banner.png)
 
 # Tidekeeper CLI
 
