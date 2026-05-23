@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QStackedWidget,
     QTableWidget,
@@ -77,6 +78,10 @@ def _label(text: str, name: str | None = None) -> QLabel:
     return label
 
 
+def _panel_title(text: str) -> QLabel:
+    return _label(text, "PanelTitle")
+
+
 class MainWindow(QMainWindow):
     def __init__(self, backend: TidekeeperBackend):
         super().__init__()
@@ -93,7 +98,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Tidekeeper")
         self.setMinimumSize(1040, 680)
-        self.resize(1180, 740)
+        self.resize(1180, 820)
         self.setStyleSheet(APP_STYLESHEET)
         self._build()
         self.version_label.setText(f"v{self.backend.version()}")
@@ -166,9 +171,12 @@ class MainWindow(QMainWindow):
         return page, layout
 
     def _build_search_page(self) -> QWidget:
-        page, layout = self._page("Search", "Find albums, tracks, videos, playlists, artists, or paste a TIDAL URL.")
+        page, layout = self._page("Search", "TIDAL catalog")
 
-        search_layout = QHBoxLayout()
+        search_layout = QGridLayout()
+        search_layout.setContentsMargins(16, 16, 16, 16)
+        search_layout.setHorizontalSpacing(10)
+        search_layout.setVerticalSpacing(10)
         self.search_type = QComboBox()
         for item in (Type.Track, Type.Album, Type.Playlist, Type.Artist, Type.Video):
             self.search_type.addItem(item.name, item)
@@ -179,12 +187,17 @@ class MainWindow(QMainWindow):
         self.search_button.setToolTip("Search TIDAL for the selected content type.")
         self.search_button.clicked.connect(self.run_search)
         self.search_text.returnPressed.connect(self.run_search)
-        search_layout.addWidget(self.search_type)
-        search_layout.addWidget(self.search_text, 1)
-        search_layout.addWidget(self.search_button)
+        search_layout.addWidget(_panel_title("Catalog search"), 0, 0)
+        search_layout.addWidget(self.search_type, 0, 1)
+        search_layout.addWidget(self.search_text, 0, 2)
+        search_layout.addWidget(self.search_button, 0, 3)
+        search_layout.setColumnStretch(2, 1)
         layout.addWidget(_panel(search_layout))
 
-        direct_layout = QHBoxLayout()
+        direct_layout = QGridLayout()
+        direct_layout.setContentsMargins(16, 16, 16, 16)
+        direct_layout.setHorizontalSpacing(10)
+        direct_layout.setVerticalSpacing(10)
         self.direct_text = QLineEdit()
         self.direct_text.setPlaceholderText("Direct download: TIDAL URL, numeric ID, mix ID, or .txt file")
         self.direct_browse_button = _button("File")
@@ -196,10 +209,12 @@ class MainWindow(QMainWindow):
         self.direct_browse_button.clicked.connect(self.browse_direct_file)
         self.direct_queue_button.clicked.connect(self.add_direct_to_queue)
         self.direct_download_button.clicked.connect(self.download_direct)
-        direct_layout.addWidget(self.direct_text, 1)
-        direct_layout.addWidget(self.direct_browse_button)
-        direct_layout.addWidget(self.direct_queue_button)
-        direct_layout.addWidget(self.direct_download_button)
+        direct_layout.addWidget(_panel_title("Direct input"), 0, 0)
+        direct_layout.addWidget(self.direct_text, 0, 1)
+        direct_layout.addWidget(self.direct_browse_button, 0, 2)
+        direct_layout.addWidget(self.direct_queue_button, 0, 3)
+        direct_layout.addWidget(self.direct_download_button, 0, 4)
+        direct_layout.setColumnStretch(1, 1)
         layout.addWidget(_panel(direct_layout))
 
         self.results_table = QTableWidget(0, 6)
@@ -228,7 +243,7 @@ class MainWindow(QMainWindow):
         return page
 
     def _build_queue_page(self) -> QWidget:
-        page, layout = self._page("Queue", "Review selected items and run downloads in order.")
+        page, layout = self._page("Queue", "Download list")
 
         self.queue_table = QTableWidget(0, 5)
         self._setup_table(self.queue_table, ["Type", "Title", "Artists", "Quality", "Status"])
@@ -259,16 +274,12 @@ class MainWindow(QMainWindow):
         self.download_log = QTextEdit()
         self.download_log.setReadOnly(True)
         self.download_log.setPlaceholderText("Download output")
+        layout.addWidget(_label("Output", "SectionTitle"))
         layout.addWidget(self.download_log)
         return page
 
     def _build_settings_page(self) -> QWidget:
-        page, layout = self._page("Settings", "Tune output, quality, and library behavior.")
-
-        grid = QGridLayout()
-        grid.setContentsMargins(16, 16, 16, 16)
-        grid.setHorizontalSpacing(18)
-        grid.setVerticalSpacing(12)
+        page, layout = self._page("Settings", "Preferences")
 
         self.download_path = QLineEdit()
         browse = _button("Browse")
@@ -288,6 +299,9 @@ class MainWindow(QMainWindow):
         self.priority_preset.setToolTip("Fallback order used when the requested stream is blocked or unavailable.")
         for label, order in PRIORITY_PRESETS:
             self.priority_preset.addItem(label, order)
+        self.priority_preset.setMinimumContentsLength(18)
+        self.priority_preset.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.priority_preset.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
         self.language = QComboBox()
         for index, name in self.backend.language_choices():
             self.language.addItem(name, index)
@@ -298,6 +312,9 @@ class MainWindow(QMainWindow):
                 f'{item["index"]} {status} - {item["platform"]} ({item["formats"]})',
                 item["index"],
             )
+        self.api_client.setMinimumContentsLength(18)
+        self.api_client.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.api_client.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
 
         self.checks = {}
         for key, label in (
@@ -320,39 +337,28 @@ class MainWindow(QMainWindow):
         self.track_format = QLineEdit()
         self.video_format = QLineEdit()
 
-        row = 0
-        grid.addWidget(_label("Download path", "SectionTitle"), row, 0)
-        grid.addLayout(path_layout, row, 1, 1, 3)
-        row += 1
-        grid.addWidget(_label("Audio quality", "SectionTitle"), row, 0)
-        grid.addWidget(self.audio_quality, row, 1)
-        grid.addWidget(_label("Video quality", "SectionTitle"), row, 2)
-        grid.addWidget(self.video_quality, row, 3)
-        row += 1
-        grid.addWidget(_label("Fallback order", "SectionTitle"), row, 0)
-        grid.addWidget(self.priority_preset, row, 1, 1, 3)
-        row += 1
-        grid.addWidget(_label("Language", "SectionTitle"), row, 0)
-        grid.addWidget(self.language, row, 1)
-        grid.addWidget(_label("TIDAL client", "SectionTitle"), row, 2)
-        grid.addWidget(self.api_client, row, 3)
-        row += 1
+        content = QWidget()
+        content.setObjectName("ScrollContent")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(10)
 
-        for index, key in enumerate(self.checks):
-            grid.addWidget(self.checks[key], row + index // 3, index % 3)
-        row += 4
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(10)
+        top_layout.addWidget(self._build_storage_settings_panel(path_layout), 3)
+        top_layout.addWidget(self._build_quality_settings_panel(), 2)
+        content_layout.addLayout(top_layout)
+        content_layout.addWidget(self._build_library_settings_panel())
+        content_layout.addWidget(self._build_naming_settings_panel())
+        content_layout.addStretch(1)
 
-        for label, widget in (
-            ("Album folder", self.album_format),
-            ("Playlist folder", self.playlist_format),
-            ("Track file", self.track_format),
-            ("Video file", self.video_format),
-        ):
-            grid.addWidget(_label(label, "SectionTitle"), row, 0)
-            grid.addWidget(widget, row, 1, 1, 3)
-            row += 1
-
-        layout.addWidget(_panel(grid), 1)
+        scroll = QScrollArea()
+        scroll.setObjectName("PageScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setWidget(content)
+        layout.addWidget(scroll, 1)
 
         action_layout = QHBoxLayout()
         self.settings_status = _label("Settings loaded.", "Muted")
@@ -366,8 +372,74 @@ class MainWindow(QMainWindow):
         layout.addLayout(action_layout)
         return page
 
+    def _build_storage_settings_panel(self, path_layout: QHBoxLayout) -> QFrame:
+        grid = QGridLayout()
+        grid.setContentsMargins(12, 12, 12, 12)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
+        grid.addWidget(_panel_title("Storage"), 0, 0, 1, 2)
+        grid.addWidget(_label("Download path", "SectionTitle"), 1, 0)
+        grid.addLayout(path_layout, 1, 1)
+        grid.addWidget(_label("Language", "SectionTitle"), 2, 0)
+        grid.addWidget(self.language, 2, 1)
+        grid.addWidget(_label("TIDAL client", "SectionTitle"), 3, 0)
+        grid.addWidget(self.api_client, 3, 1)
+        grid.setColumnStretch(1, 1)
+        return _panel(grid)
+
+    def _build_quality_settings_panel(self) -> QFrame:
+        grid = QGridLayout()
+        grid.setContentsMargins(12, 12, 12, 12)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
+        grid.addWidget(_panel_title("Quality"), 0, 0, 1, 2)
+        grid.addWidget(_label("Audio", "SectionTitle"), 1, 0)
+        grid.addWidget(self.audio_quality, 1, 1)
+        grid.addWidget(_label("Fallback", "SectionTitle"), 2, 0)
+        grid.addWidget(self.priority_preset, 2, 1)
+        grid.addWidget(_label("Video", "SectionTitle"), 3, 0)
+        grid.addWidget(self.video_quality, 3, 1)
+        grid.setColumnStretch(1, 1)
+        return _panel(grid)
+
+    def _build_library_settings_panel(self) -> QFrame:
+        grid = QGridLayout()
+        grid.setContentsMargins(12, 12, 12, 12)
+        grid.setHorizontalSpacing(24)
+        grid.setVerticalSpacing(6)
+        groups = [
+            ("Files", ["checkExist", "saveCovers", "lyricFile", "saveAlbumInfo", "usePlaylistFolder"]),
+            ("Catalog", ["includeEP", "downloadVideos"]),
+            ("Run behavior", ["multiThread", "downloadDelay", "showProgress", "showTrackInfo"]),
+        ]
+        for column, (title, keys) in enumerate(groups):
+            grid.addWidget(_label(title, "SectionTitle"), 0, column)
+            for row, key in enumerate(keys, start=1):
+                grid.addWidget(self.checks[key], row, column)
+            grid.setColumnStretch(column, 1)
+        return _panel(grid)
+
+    def _build_naming_settings_panel(self) -> QFrame:
+        grid = QGridLayout()
+        grid.setContentsMargins(12, 12, 12, 12)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(6)
+        grid.addWidget(_panel_title("Naming"), 0, 0, 1, 2)
+        fields = (
+            ("Album folder", self.album_format, 1, 0),
+            ("Playlist folder", self.playlist_format, 1, 1),
+            ("Track file", self.track_format, 3, 0),
+            ("Video file", self.video_format, 3, 1),
+        )
+        for label, widget, row, column in fields:
+            widget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+            grid.addWidget(_label(label, "SectionTitle"), row, column)
+            grid.addWidget(widget, row + 1, column)
+            grid.setColumnStretch(column, 1)
+        return _panel(grid)
+
     def _build_account_page(self) -> QWidget:
-        page, layout = self._page("Account", "Manage the saved TIDAL session used by the terminal and desktop app.")
+        page, layout = self._page("Account", "Session")
 
         status_layout = QGridLayout()
         status_layout.setContentsMargins(16, 16, 16, 16)
@@ -445,6 +517,7 @@ class MainWindow(QMainWindow):
         self.account_log = QTextEdit()
         self.account_log.setReadOnly(True)
         self.account_log.setPlaceholderText("Account output")
+        layout.addWidget(_label("Output", "SectionTitle"))
         layout.addWidget(self.account_log, 1)
         return page
 

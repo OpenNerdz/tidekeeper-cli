@@ -57,6 +57,12 @@ QLabel#SectionTitle {
     font-weight: 700;
 }
 
+QLabel#PanelTitle {
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 700;
+}
+
 QLabel#Muted {
     color: #667085;
 }
@@ -73,6 +79,11 @@ QFrame#Panel {
     background: #ffffff;
     border: 1px solid #e4e7ec;
     border-radius: 8px;
+}
+
+QScrollArea#PageScroll, QWidget#ScrollContent {
+    background: transparent;
+    border: none;
 }
 
 QLineEdit, QComboBox, QTextEdit {
