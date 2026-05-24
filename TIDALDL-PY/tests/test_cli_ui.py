@@ -22,6 +22,7 @@ class CliUiTests(unittest.TestCase):
         self.assertIn("--update\n  Update terminal install", text)
         self.assertIn("--doctor\n  Check config, auth, and local tools", text)
         self.assertIn("--paths\n  Show download/config paths", text)
+        self.assertIn("--video-only\n  Download videos only for URL/ID/file", text)
         self.assertNotIn("OPTION                  DESCRIPTION", text)
 
     def test_compact_dashboard_uses_one_command_per_line(self):
@@ -102,6 +103,16 @@ class CliUiTests(unittest.TestCase):
 
         open_path.assert_called_once_with(tidal_dl.SETTINGS.downloadPath)
         success.assert_called_once()
+
+    def test_video_only_flag_is_passed_to_link_download(self):
+        with mock.patch("sys.argv", ["tidekeeper", "--video-only", "-l", "artist-id"]):
+            with mock.patch.object(tidal_dl.aigpy.path, "mkdirs", return_value=True), \
+                 mock.patch.object(tidal_dl, "loginByConfig", return_value=True), \
+                 mock.patch.object(tidal_dl.Printf, "info"), \
+                 mock.patch.object(tidal_dl, "start") as start:
+                tidal_dl.mainCommand()
+
+        start.assert_called_once_with("artist-id", True)
 
 
 if __name__ == "__main__":

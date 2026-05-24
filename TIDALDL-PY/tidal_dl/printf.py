@@ -88,6 +88,7 @@ class Printf(object):
                 ("--doctor", "Check config, auth, and local tools"),
                 ("--paths", "Show download/config paths"),
                 ("--open-output", "Open download folder"),
+                ("--video-only", "Download videos only for URL/ID/file"),
                 ("-l, --link URL", "Download URL/ID/file"),
                 ("-o, --output PATH", "Set save folder"),
                 ("-q, --quality NAME", "Normal, High, HiFi, Master, Max, Atmos"),
@@ -108,6 +109,7 @@ class Printf(object):
             ["--doctor", "Check config, auth, and local tools"],
             ["--paths", "Show download/config paths"],
             ["--open-output", "Open the download folder"],
+            ["--video-only", "Download only videos for a Tidal URL, ID, or text file"],
             ["-l, --link", "Download a Tidal URL, ID, or text file"],
             ["-o, --output", "Set download path"],
             ["-q, --quality", "Set one audio quality: Normal, High, HiFi, Master, Max, Atmos"],
@@ -337,17 +339,17 @@ class Printf(object):
                      "==================================")
 
     @staticmethod
-    def artist(data: Artist, num):
+    def artist(data: Artist, num, countLabel="Number of albums"):
         tb = Printf.__gettable__([LANG.select.MODEL_ARTIST_PROPERTY, LANG.select.VALUE], [
             [LANG.select.MODEL_ID, data.id],
             [LANG.select.MODEL_NAME, data.name],
-            ["Number of albums", num],
+            [countLabel, num],
             [LANG.select.MODEL_TYPE, str(data.type)],
         ])
         print(tb)
         logging.info("====artist " + str(data.id) + "====\n" +
                      "name:" + data.name + "\n" +
-                     "album num:" + str(num) + "\n" +
+                     countLabel.lower() + ":" + str(num) + "\n" +
                      "==================================")
 
     @staticmethod

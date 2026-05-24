@@ -57,6 +57,11 @@ def _validate_interactions(window) -> list[str]:
     window.direct_text.setText("https://tidal.com/browse/track/70973230")
     if not window.direct_queue_button.isEnabled() or not window.direct_download_button.isEnabled():
         failures.append("search: direct actions are disabled with input")
+    window.direct_video_only.setChecked(True)
+    direct_item = window.direct_item_from_input()
+    if direct_item is None or not direct_item.video_only:
+        failures.append("search: direct videos-only checkbox is not applied")
+    window.direct_video_only.setChecked(False)
 
     if window.results:
         window.results_table.clearSelection()
@@ -70,6 +75,11 @@ def _validate_interactions(window) -> list[str]:
         row_item = window._row_item(window.results_table, 0)
         if not selected or selected[0] is not row_item:
             failures.append("search: sorted selection resolves the wrong item")
+        window.result_video_only.setChecked(True)
+        video_only_items = window.video_mode_items(selected, True)
+        if not video_only_items or not video_only_items[0].video_only:
+            failures.append("search: selected videos-only checkbox is not applied")
+        window.result_video_only.setChecked(False)
 
     if window.queue:
         window.queue_table.clearSelection()

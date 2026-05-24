@@ -11,7 +11,7 @@ from unittest import mock
 import tidal_dl
 from tidal_dl import apiKey, download, events, paths
 from tidal_dl.enums import AudioQuality, Type, VideoQuality
-from tidal_dl.gui_app.backend import TidekeeperBackend
+from tidal_dl.gui_app.backend import TidekeeperBackend, SearchItem, with_video_only
 from tidal_dl.model import StreamUrl
 from tidal_dl.settings import Settings
 from tidal_dl.tidal import TidalAPI, TidalApiError
@@ -173,6 +173,41 @@ class CliAuthPathRegressionTests(unittest.TestCase):
 
         self.assertEqual([track.id for track in tracks], [1])
         self.assertEqual([video.id for video in videos], [3])
+
+    def test_artist_videos_fetches_artist_video_endpoint(self):
+        api = TidalAPI()
+        calls = []
+
+        def fake_items(path, params=None):
+            calls.append((path, params))
+            return [
+                {"id": 10, "title": "Video One"},
+                {"type": "video", "item": {"id": 20, "title": "Video Two"}},
+            ]
+
+        api.__getItems__ = fake_items
+
+        videos = api.getArtistVideos(99)
+
+        self.assertEqual(calls, [("artists/99/videos", None)])
+        self.assertEqual([video.id for video in videos], [10, 20])
+        self.assertEqual([video.title for video in videos], ["Video One", "Video Two"])
+
+    def test_artist_video_only_downloads_artist_videos_without_album_audio(self):
+        artist = SimpleNamespace(id=99, name="Artist", type="MAIN")
+        video = self._video()
+        video.id = 10
+
+        with mock.patch.object(events.TIDAL_API, "getArtistVideos", return_value=[video]) as artist_videos, \
+             mock.patch.object(events.TIDAL_API, "getArtistAlbums") as artist_albums, \
+             mock.patch.object(events, "start_album") as start_album, \
+             mock.patch.object(events, "downloadVideos") as download_videos:
+            events.start_artist(artist, videoOnly=True)
+
+        artist_videos.assert_called_once_with(99)
+        artist_albums.assert_not_called()
+        start_album.assert_not_called()
+        download_videos.assert_called_once_with([video], None)
 
     def test_manual_access_token_login_persists_userid(self):
         old_values = {
@@ -352,6 +387,35 @@ class CliAuthPathRegressionTests(unittest.TestCase):
 
         self.assertEqual([item.identifier for item in tracks], ["1", "2"])
         self.assertEqual([item.kind for item in tracks], [Type.Track, Type.Track])
+
+    def test_gui_backend_artist_videos_fetches_videos_without_duplicates(self):
+        artist = SimpleNamespace(id=99, name="Artist")
+        video_one = self._video()
+        video_one.id = 1
+        video_one.title = "One"
+        video_two = self._video()
+        video_two.id = 2
+        video_two.title = "Two"
+
+        backend = TidekeeperBackend()
+        search_item = SimpleNamespace(source=artist, identifier="99")
+        with mock.patch.object(backend, "_ensure_catalog_session"), \
+             mock.patch.object(events.TIDAL_API, "getArtistVideos", return_value=[video_one, video_one, video_two]):
+            videos = backend.artist_videos(search_item)
+
+        self.assertEqual([item.identifier for item in videos], ["1", "2"])
+        self.assertEqual([item.kind for item in videos], [Type.Video, Type.Video])
+
+    def test_gui_backend_download_honors_video_only_flag(self):
+        backend = TidekeeperBackend()
+        item = SearchItem(Type.Artist, "Artist", "", "", "99", "", SimpleNamespace(id=99))
+        item = with_video_only(item, True)
+
+        with mock.patch.object(backend, "_ensure_catalog_session"), \
+             mock.patch("tidal_dl.gui_app.backend.start_type") as start_type:
+            backend.download(item)
+
+        start_type.assert_called_once_with(Type.Artist, item.source, True)
 
     def test_gui_backend_all_search_combines_catalog_types(self):
         artist = SimpleNamespace(id=99, name="Artist")

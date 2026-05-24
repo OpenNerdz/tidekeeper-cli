@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 
 from ..enums import AudioQuality, Type, VideoQuality
 from ..settings import SETTINGS
-from .backend import SearchItem, TidekeeperBackend
+from .backend import SearchItem, TidekeeperBackend, with_video_only
 from .style import APP_STYLESHEET
 from .workers import DownloadWorker, TaskWorker
 
@@ -206,9 +206,11 @@ class MainWindow(QMainWindow):
         direct_layout.setVerticalSpacing(10)
         self.direct_text = QLineEdit()
         self.direct_text.setPlaceholderText("Direct download: TIDAL URL, numeric ID, mix ID, or .txt file")
+        self.direct_video_only = QCheckBox("Videos only")
         self.direct_browse_button = _button("File")
         self.direct_queue_button = _button("Add Direct")
         self.direct_download_button = _button("Download Direct", primary=True)
+        self.direct_video_only.setToolTip("Skip audio tracks for artist, album, playlist, mix, video, or file downloads.")
         self.direct_browse_button.setToolTip("Pick a text file containing TIDAL URLs.")
         self.direct_queue_button.setToolTip("Add this URL, ID, or file to the queue.")
         self.direct_download_button.setToolTip("Start this direct download now.")
@@ -217,10 +219,11 @@ class MainWindow(QMainWindow):
         self.direct_download_button.clicked.connect(self.download_direct)
         self.direct_text.textChanged.connect(self.update_direct_actions)
         direct_layout.addWidget(_panel_title("Direct input"), 0, 0)
-        direct_layout.addWidget(self.direct_text, 0, 1)
-        direct_layout.addWidget(self.direct_browse_button, 0, 2)
-        direct_layout.addWidget(self.direct_queue_button, 0, 3)
-        direct_layout.addWidget(self.direct_download_button, 0, 4)
+        direct_layout.addWidget(self.direct_text, 0, 1, 1, 4)
+        direct_layout.addWidget(self.direct_browse_button, 0, 5)
+        direct_layout.addWidget(self.direct_video_only, 1, 1)
+        direct_layout.addWidget(self.direct_queue_button, 1, 4)
+        direct_layout.addWidget(self.direct_download_button, 1, 5)
         direct_layout.setColumnStretch(1, 1)
         layout.addWidget(_panel(direct_layout))
 
@@ -241,15 +244,22 @@ class MainWindow(QMainWindow):
         self.search_status = _label("No search run yet.", "Muted")
         action_layout.addWidget(self.search_status, 1)
         self.back_results_button = _button("Back")
+        self.artist_videos_button = _button("View Videos")
+        self.result_video_only = QCheckBox("Videos only")
         self.add_queue_button = _button("Add to Queue")
         self.download_now_button = _button("Download Now", primary=True)
         self.back_results_button.setToolTip("Return to the previous result list.")
+        self.artist_videos_button.setToolTip("Replace an Artist result with its videos.")
+        self.result_video_only.setToolTip("Queue or download selected rows in videos-only mode.")
         self.add_queue_button.setToolTip("Add selected rows to the queue.")
         self.download_now_button.setToolTip("Add selected rows and start downloading.")
         self.back_results_button.clicked.connect(self.show_previous_results)
+        self.artist_videos_button.clicked.connect(self.view_selected_artist_videos)
         self.add_queue_button.clicked.connect(self.add_selected_to_queue)
         self.download_now_button.clicked.connect(self.download_selected)
         action_layout.addWidget(self.back_results_button)
+        action_layout.addWidget(self.artist_videos_button)
+        action_layout.addWidget(self.result_video_only)
         action_layout.addWidget(self.add_queue_button)
         action_layout.addWidget(self.download_now_button)
         layout.addLayout(action_layout)
@@ -645,6 +655,31 @@ class MainWindow(QMainWindow):
         worker.signals.finished.connect(self._search_finished)
         self.start_worker(worker)
 
+    def view_selected_artist_videos(self):
+        items = self.selected_result_items()
+        if len(items) != 1 or items[0].kind != Type.Artist:
+            self.search_status.setText("Select one artist row first.")
+            return
+        if self.search_in_progress:
+            return
+
+        item = items[0]
+        self.result_history.append((list(self.results), self.search_status.text()))
+        self.search_in_progress = True
+        self.search_status.setText(f"Loading videos by {item.title}...")
+        self.update_search_action()
+        self.update_result_actions()
+        worker = TaskWorker(self.backend.artist_videos, item)
+        worker.signals.result.connect(
+            lambda videos, artist=item.title: self.set_search_results(
+                videos,
+                f"{len(videos)} video{'s' if len(videos) != 1 else ''} by {artist}.",
+            )
+        )
+        worker.signals.error.connect(self.show_search_error)
+        worker.signals.finished.connect(self._search_finished)
+        self.start_worker(worker)
+
     def show_previous_results(self):
         if not self.result_history or self.search_in_progress:
             return
@@ -667,7 +702,7 @@ class MainWindow(QMainWindow):
         return cell.data(Qt.UserRole)
 
     def add_selected_to_queue(self):
-        items = self.selected_result_items()
+        items = self.video_mode_items(self.selected_result_items(), self.result_video_only.isChecked())
         if not items:
             self.search_status.setText("Select one or more rows first.")
             return
@@ -685,7 +720,7 @@ class MainWindow(QMainWindow):
         if not text:
             self.search_status.setText("Enter a URL, ID, mix ID, or .txt file.")
             return None
-        return self.backend.direct_item(text)
+        return with_video_only(self.backend.direct_item(text), self.direct_video_only.isChecked())
 
     def add_direct_to_queue(self):
         item = self.direct_item_from_input()
@@ -711,7 +746,7 @@ class MainWindow(QMainWindow):
         if self.download_in_progress:
             self.search_status.setText("A download is already running.")
             return
-        items = self.selected_result_items()
+        items = self.video_mode_items(self.selected_result_items(), self.result_video_only.isChecked())
         if not items:
             self.search_status.setText("Select one or more rows first.")
             return
@@ -725,6 +760,8 @@ class MainWindow(QMainWindow):
         self.queue_table.setRowCount(len(self.queue))
         for row, item in enumerate(self.queue):
             kind = "Direct" if item.kind == Type.Null else item.kind.name
+            if item.video_only and item.kind != Type.Video:
+                kind += " videos"
             values = [kind, item.title, item.artists, item.quality, "Queued"]
             for col, value in enumerate(values):
                 cell = QTableWidgetItem(str(value))
@@ -794,10 +831,18 @@ class MainWindow(QMainWindow):
         self.direct_download_button.setEnabled(has_input and not self.download_in_progress)
 
     def update_result_actions(self):
-        has_selection = bool(self.results_table.selectionModel().selectedRows())
+        selected = self.selected_result_items()
+        has_selection = bool(selected)
+        has_single_artist = len(selected) == 1 and selected[0].kind == Type.Artist
         self.back_results_button.setEnabled(bool(self.result_history) and not self.search_in_progress)
+        self.artist_videos_button.setEnabled(has_single_artist and not self.search_in_progress)
         self.add_queue_button.setEnabled(has_selection)
         self.download_now_button.setEnabled(has_selection and not self.download_in_progress)
+
+    def video_mode_items(self, items: List[SearchItem], video_only: bool) -> List[SearchItem]:
+        if not video_only:
+            return items
+        return [with_video_only(item, True) for item in items]
 
     def update_queue_actions(self):
         has_queue = bool(self.queue)

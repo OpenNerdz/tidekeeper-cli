@@ -39,6 +39,7 @@ def mainCommand():
                                        "help", "version", "gui", "doctor",
                                        "update", "update-gui",
                                        "paths", "open-output",
+                                       "video-only", "videos-only",
                                        "link=", "output=", "quality=", "quality-priority=", "resolution="
                                    ])
     except getopt.GetoptError as errmsg:
@@ -52,6 +53,7 @@ def mainCommand():
     updateGuiInstall = False
     showPaths = False
     openOutput = False
+    videoOnly = False
 
     for opt, val in opts:
         if opt in ('-h', '--help'):
@@ -71,6 +73,9 @@ def mainCommand():
             continue
         if opt == '--open-output':
             openOutput = True
+            continue
+        if opt in ('--video-only', '--videos-only'):
+            videoOnly = True
             continue
         if opt == '--update':
             updateInstall = True
@@ -134,7 +139,7 @@ def mainCommand():
         if not loginByConfig() and not loginByWeb():
             return
         Printf.info(LANG.select.SETTING_DOWNLOAD_PATH + ':' + SETTINGS.downloadPath)
-        start(link)
+        start(link, videoOnly)
 
 
 def normalizeChoice(choice):

@@ -18,15 +18,16 @@ START DOWNLOAD
 '''
 
 
-def start_album(obj: Album):
+def start_album(obj: Album, videoOnly=False):
     Printf.album(obj)
     tracks, videos = TIDAL_API.getItems(obj.id, Type.Album)
-    if SETTINGS.saveAlbumInfo:
+    if not videoOnly and SETTINGS.saveAlbumInfo:
         downloadAlbumInfo(obj, tracks)
-    if SETTINGS.saveCovers and obj.cover is not None:
+    if not videoOnly and SETTINGS.saveCovers and obj.cover is not None:
         downloadCover(obj)
-    downloadTracks(tracks, obj)
-    if SETTINGS.downloadVideos:
+    if not videoOnly:
+        downloadTracks(tracks, obj)
+    if videoOnly or SETTINGS.downloadVideos:
         downloadVideos(videos, obj)
 
 
@@ -41,28 +42,39 @@ def start_video(obj: Video):
     downloadVideo(obj, obj.album)
 
 
-def start_artist(obj: Artist):
+def start_artist(obj: Artist, videoOnly=False):
+    if videoOnly:
+        videos = TIDAL_API.getArtistVideos(obj.id)
+        Printf.artist(obj, len(videos), "Number of videos")
+        if len(videos) <= 0:
+            Printf.info("No videos found for artist.")
+            return
+        downloadVideos(videos, None)
+        return
+
     albums = TIDAL_API.getArtistAlbums(obj.id, SETTINGS.includeEP)
     Printf.artist(obj, len(albums))
     for item in albums:
         start_album(item)
 
 
-def start_playlist(obj: Playlist):
+def start_playlist(obj: Playlist, videoOnly=False):
     Printf.playlist(obj)
     tracks, videos = TIDAL_API.getItems(obj.uuid, Type.Playlist)
-    downloadTracks(tracks, None, obj)
-    if SETTINGS.downloadVideos:
+    if not videoOnly:
+        downloadTracks(tracks, None, obj)
+    if videoOnly or SETTINGS.downloadVideos:
         downloadVideos(videos, None, obj)
 
 
-def start_mix(obj: Mix):
+def start_mix(obj: Mix, videoOnly=False):
     Printf.mix(obj)
-    downloadTracks(obj.tracks, None, None)
+    if not videoOnly:
+        downloadTracks(obj.tracks, None, None)
     downloadVideos(obj.videos, None, None)
 
 
-def start_file(string):
+def start_file(string, videoOnly=False):
     txt = aigpy.file.getContent(string)
     if aigpy.string.isNull(txt):
         Printf.err("Nothing can read!")
@@ -75,25 +87,28 @@ def start_file(string):
             continue
         if item[0] == '[':
             continue
-        start(item)
+        start(item, videoOnly)
 
 
-def start_type(etype: Type, obj):
+def start_type(etype: Type, obj, videoOnly=False):
     if etype == Type.Album:
-        start_album(obj)
+        start_album(obj, videoOnly)
     elif etype == Type.Track:
-        start_track(obj)
+        if videoOnly:
+            Printf.err("Video-only downloads require an artist, album, playlist, mix, or video URL.")
+        else:
+            start_track(obj)
     elif etype == Type.Video:
         start_video(obj)
     elif etype == Type.Artist:
-        start_artist(obj)
+        start_artist(obj, videoOnly)
     elif etype == Type.Playlist:
-        start_playlist(obj)
+        start_playlist(obj, videoOnly)
     elif etype == Type.Mix:
-        start_mix(obj)
+        start_mix(obj, videoOnly)
 
 
-def start(string):
+def start(string, videoOnly=False):
     if aigpy.string.isNull(string):
         Printf.err('Please enter something.')
         return
@@ -103,7 +118,7 @@ def start(string):
         if aigpy.string.isNull(item):
             continue
         if os.path.exists(item):
-            start_file(item)
+            start_file(item, videoOnly)
             return
 
         try:
@@ -113,7 +128,7 @@ def start(string):
             return
 
         try:
-            start_type(etype, obj)
+            start_type(etype, obj, videoOnly)
         except Exception as e:
             Printf.err(str(e))
 

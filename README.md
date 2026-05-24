@@ -92,6 +92,7 @@ tidekeeper --open-output
 tidekeeper --update
 tidekeeper
 tidekeeper -l "https://tidal.com/browse/track/70973230"
+tidekeeper --video-only -l "https://tidal.com/browse/artist/123456"
 ```
 
 `tidekeeper --doctor` checks the saved client, token, download path, and local
@@ -105,6 +106,9 @@ manager.
 `tidekeeper --update-gui` when the desktop GUI extra should be updated too.
 Standalone release binaries direct you to the latest release asset instead of
 replacing the running executable.
+
+Use `--video-only` with `-l` to download videos without audio tracks from an
+artist, album, playlist, mix, direct video URL, or text file of TIDAL links.
 
 Dolby Atmos downloads are opt-in:
 

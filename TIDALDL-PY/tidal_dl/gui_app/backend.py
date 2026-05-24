@@ -4,7 +4,7 @@ import contextlib
 import io
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import SimpleNamespace
 from typing import Callable, Iterable, List, Optional
 
@@ -71,6 +71,7 @@ class SearchItem:
     identifier: str
     duration: str
     source: object
+    video_only: bool = False
 
 
 class _CallbackWriter(io.TextIOBase):
@@ -133,6 +134,10 @@ def to_search_item(kind: Type, item) -> SearchItem:
         duration=_duration_label(getattr(item, "duration", 0)),
         source=item,
     )
+
+
+def with_video_only(item: SearchItem, video_only: bool) -> SearchItem:
+    return replace(item, video_only=video_only)
 
 
 class TidekeeperBackend:
@@ -269,6 +274,22 @@ class TidekeeperBackend:
                 tracks.append(to_search_item(Type.Track, track))
         return tracks
 
+    def artist_videos(self, artist: SearchItem) -> List[SearchItem]:
+        self._ensure_catalog_session()
+        artist_id = getattr(artist.source, "id", None) or artist.identifier
+        if artist_id is None or str(artist_id).strip() == "":
+            raise RuntimeError("Artist ID is missing.")
+
+        seen_videos = set()
+        videos = []
+        for video in TIDAL_API.getArtistVideos(artist_id):
+            video_id = getattr(video, "id", None)
+            if video_id is None or str(video_id).strip() == "" or video_id in seen_videos:
+                continue
+            seen_videos.add(video_id)
+            videos.append(to_search_item(Type.Video, video))
+        return videos
+
     def direct_item(self, text: str) -> SearchItem:
         label = os.path.basename(text) if os.path.exists(text) else text
         return SearchItem(Type.Null, label, "", "Direct", text, "", text)
@@ -279,9 +300,9 @@ class TidekeeperBackend:
         writer = _CallbackWriter(callback)
         with contextlib.redirect_stdout(writer), contextlib.redirect_stderr(writer):
             if item.kind == Type.Null:
-                start(str(item.source))
+                start(str(item.source), item.video_only)
             else:
-                start_type(item.kind, item.source)
+                start_type(item.kind, item.source, item.video_only)
 
     def save_settings(self, values: dict):
         audio_priority = SETTINGS.getAudioQualityPriority(values.get("audioQualityPriority", []))
@@ -435,12 +456,39 @@ class DemoBackend(TidekeeperBackend):
             )
         return [to_search_item(kind, item) for item in samples]
 
+    def artist_videos(self, artist: SearchItem) -> List[SearchItem]:
+        source_artist = getattr(artist, "source", None)
+        if getattr(source_artist, "name", None):
+            demo_artist = source_artist
+        else:
+            demo_artist = SimpleNamespace(id=artist.identifier or 99, name=artist.title or "The Midnight")
+
+        videos = []
+        for index, title in enumerate(("Los Angeles", "Sunset", "Vampires", "Deep Blue", "America Online"), 1):
+            videos.append(
+                SimpleNamespace(
+                    id=880000 + index,
+                    title=f"{title} video",
+                    artists=[demo_artist],
+                    artist=demo_artist,
+                    album=SimpleNamespace(id=101, title="Video Collection"),
+                    duration=180 + index * 15,
+                    quality="HIGH",
+                    trackNumber=index,
+                    releaseDate="2026-01-01",
+                    explicit=False,
+                )
+            )
+        return [to_search_item(Type.Video, item) for item in videos]
+
     def direct_item(self, text: str) -> SearchItem:
         return SearchItem(Type.Null, text, "", "Direct", text, "", text)
 
     def download(self, item: SearchItem, log: LogCallback = None):
         if log:
             log(f"Queued {item.title}\n")
+            if item.video_only:
+                log("Videos-only mode enabled\n")
             log("Resolved stream metadata\n")
             log("Demo download completed\n")
 

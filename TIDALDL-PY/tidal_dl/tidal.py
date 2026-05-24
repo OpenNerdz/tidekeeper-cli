@@ -365,6 +365,15 @@ class TidalAPI(object):
         albums += list(aigpy.model.dictToModel(item, Album()) for item in data)
         return albums
 
+    def getArtistVideos(self, id):
+        data = self.__getItems__(f'artists/{str(id)}/videos')
+        videos = []
+        for item in data:
+            if isinstance(item, dict) and item.get('type') == 'video' and 'item' in item:
+                item = item['item']
+            videos.append(aigpy.model.dictToModel(item, Video()))
+        return videos
+
     # from https://github.com/Dniel97/orpheusdl-tidal/blob/master/interface.py#L582
     def parse_mpd(self, xml: bytes) -> list:
         # Removes default namespace definition, don't do that!
