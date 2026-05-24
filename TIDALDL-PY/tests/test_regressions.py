@@ -193,6 +193,18 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         self.assertEqual([video.id for video in videos], [10, 20])
         self.assertEqual([video.title for video in videos], ["Video One", "Video Two"])
 
+    def test_mix_lookup_returns_mix_object(self):
+        api = TidalAPI()
+        track = self._track()
+        video = self._video()
+
+        with mock.patch.object(api, "getItems", return_value=([track], [video])):
+            mix = api.getMix("mix-id")
+
+        self.assertEqual(mix.id, "mix-id")
+        self.assertEqual(mix.tracks, [track])
+        self.assertEqual(mix.videos, [video])
+
     def test_artist_video_only_downloads_artist_videos_without_album_audio(self):
         artist = SimpleNamespace(id=99, name="Artist", type="MAIN")
         video = self._video()
@@ -286,6 +298,82 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         finally:
             for key, value in old_values.items():
                 setattr(events.TOKEN, key, value)
+
+    def test_api_get_refreshes_saved_token_after_unauthorized_response(self):
+        api = TidalAPI()
+        old_values = {
+            "userid": events.TOKEN.userid,
+            "countryCode": events.TOKEN.countryCode,
+            "accessToken": events.TOKEN.accessToken,
+            "refreshToken": events.TOKEN.refreshToken,
+            "expiresAfter": events.TOKEN.expiresAfter,
+        }
+
+        def fake_response(status, body):
+            text = json.dumps(body)
+            return SimpleNamespace(
+                status_code=status,
+                url="https://api.tidalhifi.com/v1/albums/123",
+                text=text,
+                json=lambda: body,
+                close=mock.Mock(),
+            )
+
+        try:
+            events.TOKEN.userid = "user-123"
+            events.TOKEN.countryCode = "GB"
+            events.TOKEN.accessToken = "expired-access"
+            events.TOKEN.refreshToken = "refresh-token"
+            events.TOKEN.expiresAfter = 0
+            api.key.accessToken = "expired-access"
+            api.key.countryCode = "GB"
+
+            def fake_refresh(refresh_token):
+                self.assertEqual(refresh_token, "refresh-token")
+                api.key.userId = "user-123"
+                api.key.countryCode = "GB"
+                api.key.accessToken = "fresh-access"
+                api.key.refreshToken = "fresh-refresh"
+                api.key.expiresIn = 3600
+                return True
+
+            with mock.patch.object(api, "refreshAccessToken", side_effect=fake_refresh), \
+                 mock.patch.object(events.TOKEN, "save") as save, \
+                 mock.patch.object(api.session, "get", side_effect=[
+                     fake_response(401, {"status": 401}),
+                     fake_response(200, {"id": 123, "title": "Album"}),
+                 ]) as get:
+                data = api.__get__("albums/123")
+
+            self.assertEqual(data["title"], "Album")
+            self.assertEqual(events.TOKEN.accessToken, "fresh-access")
+            self.assertEqual(events.TOKEN.refreshToken, "fresh-refresh")
+            save.assert_called_once_with()
+            self.assertEqual(get.call_args_list[0].kwargs["headers"]["authorization"], "Bearer expired-access")
+            self.assertEqual(get.call_args_list[1].kwargs["headers"]["authorization"], "Bearer fresh-access")
+        finally:
+            for key, value in old_values.items():
+                setattr(events.TOKEN, key, value)
+
+    def test_playback_api_requests_use_rate_limiter(self):
+        api = TidalAPI()
+        old_delay = events.SETTINGS.downloadDelay
+        limiter = SimpleNamespace(wait=mock.Mock())
+        response = SimpleNamespace(
+            status_code=200,
+            text=json.dumps({"ok": True}),
+            headers={},
+            url="https://api.tidalhifi.com/v1/tracks/123/playbackinfopostpaywall",
+        )
+        try:
+            events.SETTINGS.downloadDelay = True
+            api.playbackRateLimiter = limiter
+            with mock.patch.object(api.session, "get", return_value=response):
+                self.assertEqual(api.__get__("tracks/123/playbackinfopostpaywall"), {"ok": True})
+
+            limiter.wait.assert_called_once_with()
+        finally:
+            events.SETTINGS.downloadDelay = old_delay
 
     def test_gui_backend_syncs_saved_country_code_before_search(self):
         old_values = {
@@ -406,6 +494,36 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         self.assertEqual([item.identifier for item in videos], ["1", "2"])
         self.assertEqual([item.kind for item in videos], [Type.Video, Type.Video])
 
+    def test_download_tracks_reuses_album_fetches_and_covers(self):
+        old_values = {
+            "saveCovers": download.SETTINGS.saveCovers,
+            "usePlaylistFolder": download.SETTINGS.usePlaylistFolder,
+            "multiThread": download.SETTINGS.multiThread,
+        }
+        album = self._album()
+        track_one = self._track()
+        track_two = self._track()
+        track_one.id = 1
+        track_two.id = 2
+        track_one.album = SimpleNamespace(id=album.id)
+        track_two.album = SimpleNamespace(id=album.id)
+        try:
+            download.SETTINGS.saveCovers = True
+            download.SETTINGS.usePlaylistFolder = False
+            download.SETTINGS.multiThread = False
+
+            with mock.patch.object(download.TIDAL_API, "getAlbum", return_value=album) as get_album, \
+                 mock.patch.object(download, "downloadCover", return_value=(True, "")) as cover, \
+                 mock.patch.object(download, "downloadTrack", return_value=(True, "")) as track_download:
+                self.assertTrue(download.downloadTracks([track_one, track_two], None, self._playlist()))
+
+            get_album.assert_called_once_with(album.id)
+            cover.assert_called_once_with(album)
+            self.assertEqual(track_download.call_count, 2)
+        finally:
+            for key, value in old_values.items():
+                setattr(download.SETTINGS, key, value)
+
     def test_gui_backend_download_honors_video_only_flag(self):
         backend = TidekeeperBackend()
         item = SearchItem(Type.Artist, "Artist", "", "", "99", "", SimpleNamespace(id=99))
@@ -449,9 +567,10 @@ class CliAuthPathRegressionTests(unittest.TestCase):
         self.assertEqual(TidalAPI().getFlag(album, Type.Album), "")
 
     def test_get_cover_data_uses_timeout(self):
+        api = TidalAPI()
         response = SimpleNamespace(content=b"cover")
-        with mock.patch("tidal_dl.tidal.requests.get", return_value=response) as get:
-            self.assertEqual(TidalAPI().getCoverData("abc-def"), b"cover")
+        with mock.patch.object(api.session, "get", return_value=response) as get:
+            self.assertEqual(api.getCoverData("abc-def"), b"cover")
 
         self.assertEqual(get.call_args.kwargs["timeout"], (5, 60))
 

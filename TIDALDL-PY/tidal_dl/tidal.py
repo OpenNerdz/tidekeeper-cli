@@ -13,6 +13,8 @@ import re
 import time
 import base64
 import json
+import logging
+from threading import Lock
 from typing import List
 from xml.etree import ElementTree
 from urllib.parse import unquote, urlparse
@@ -25,6 +27,31 @@ from .settings import *
 # Retry number
 requests.adapters.DEFAULT_RETRIES = 5
 REQUEST_TIMEOUT = (5, 60)
+
+
+class RequestRateLimiter:
+    def __init__(self, minInterval=1.0, jitter=0.5):
+        self.minInterval = minInterval
+        self.jitter = jitter
+        self._lock = Lock()
+        self._nextAllowed = 0.0
+
+    def wait(self):
+        if self.minInterval <= 0:
+            return 0.0
+
+        with self._lock:
+            now = time.monotonic()
+            delay = max(0.0, self._nextAllowed - now)
+            base = now + delay
+            self._nextAllowed = base + self.minInterval + random.uniform(0, self.jitter)
+
+        if delay > 0:
+            time.sleep(delay)
+        return delay
+
+
+PLAYBACK_RATE_LIMITER = RequestRateLimiter()
 
 
 class TidalApiError(Exception):
@@ -43,6 +70,11 @@ class TidalAPI(object):
         self.key = LoginKey()
         self.apiKey = {'clientId': 'fX2JxdmntZWK0ixT',
                        'clientSecret': '1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg='}
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=8, pool_maxsize=16)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        self.playbackRateLimiter = PLAYBACK_RATE_LIMITER
 
     def __responseErrorCodes__(self, response):
         try:
@@ -72,30 +104,57 @@ class TidalAPI(object):
             self.__responseErrorCodes__(response),
         )
 
+    def __refreshSavedAccessToken__(self):
+        if aigpy.string.isNull(getattr(TOKEN, 'refreshToken', None)):
+            return False
+
+        try:
+            if not self.refreshAccessToken(TOKEN.refreshToken):
+                return False
+
+            TOKEN.userid = self.key.userId
+            TOKEN.countryCode = self.key.countryCode
+            TOKEN.accessToken = self.key.accessToken
+            TOKEN.refreshToken = self.key.refreshToken
+            TOKEN.expiresAfter = time.time() + int(self.key.expiresIn)
+            TOKEN.save()
+            return True
+        except Exception as e:
+            logging.info("Unable to refresh saved access token: %s", e)
+            return False
+
+    def __retryAfter__(self, response, attempt):
+        retryAfter = getattr(response, 'headers', {}).get('Retry-After') if response is not None else None
+        if retryAfter:
+            try:
+                return min(float(retryAfter), 60)
+            except ValueError:
+                pass
+        return min(5 * (attempt + 1), 20)
+
     def __get__(self, path, params=None, urlpre='https://api.tidalhifi.com/v1/'):
-        header = {}
-        header = {'authorization': f'Bearer {self.key.accessToken}'}
         params = {} if params is None else dict(params)
         params['countryCode'] = self.key.countryCode
         errmsg = "Get operation err!"
         respond = None
+        refreshedToken = False
+        url = urlpre + path
         for index in range(0, 3):
             try:
-                respond = requests.get(urlpre + path, headers=header, params=params, timeout=REQUEST_TIMEOUT)
-                if respond.url.find("playbackinfopostpaywall") != -1 and SETTINGS.downloadDelay is not False:
-                    # random sleep between 0.5 and 5 seconds and print it
-                    sleep_time = random.randint(500, 5000) / 1000
-                    print(
-                        f"Sleeping for {sleep_time} seconds, to mimic human behaviour and prevent too many requests error")
-                    time.sleep(sleep_time)
+                header = {'authorization': f'Bearer {self.key.accessToken}'}
+                if "playbackinfopostpaywall" in url and SETTINGS.downloadDelay is not False:
+                    self.playbackRateLimiter.wait()
+
+                respond = self.session.get(url, headers=header, params=params, timeout=REQUEST_TIMEOUT)
 
                 if respond.status_code == 429:
-                    print('Too many requests, waiting for 20 seconds...')
-                    # Loop countdown 20 seconds and print the remaining time
-                    for i in range(20, 0, -1):
-                        time.sleep(1)
-                        print(i, end=' ')
-                    print('')
+                    delay = self.__retryAfter__(respond, index)
+                    print(f"Too many requests, waiting {delay:g} seconds before retry.")
+                    time.sleep(delay)
+                    continue
+
+                if respond.status_code == 401 and not refreshedToken and self.__refreshSavedAccessToken__():
+                    refreshedToken = True
                     continue
 
                 if respond.status_code != 200:
@@ -139,7 +198,7 @@ class TidalAPI(object):
 
     def __getResolutionList__(self, url):
         ret = []
-        response = requests.get(url, timeout=REQUEST_TIMEOUT)
+        response = self.session.get(url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         txt = response.content.decode('utf-8')
         # array = txt.split("#EXT-X-STREAM-INF")
@@ -161,7 +220,7 @@ class TidalAPI(object):
     def __post__(self, path, data, auth=None, urlpre='https://auth.tidal.com/v1/oauth2'):
         for index in range(3):
             try:
-                response = requests.post(urlpre + path, data=data, auth=auth, timeout=REQUEST_TIMEOUT)
+                response = self.session.post(urlpre + path, data=data, auth=auth, timeout=REQUEST_TIMEOUT)
                 try:
                     return response.json()
                 except ValueError:
@@ -221,7 +280,7 @@ class TidalAPI(object):
 
     def verifyAccessToken(self, accessToken) -> bool:
         header = {'authorization': 'Bearer {}'.format(accessToken)}
-        result = requests.get('https://api.tidal.com/v1/sessions', headers=header, timeout=REQUEST_TIMEOUT).json()
+        result = self.session.get('https://api.tidal.com/v1/sessions', headers=header, timeout=REQUEST_TIMEOUT).json()
 
         if 'status' in result and result['status'] != 200:
             return False
@@ -250,7 +309,7 @@ class TidalAPI(object):
 
     def loginByAccessToken(self, accessToken, userid=None):
         header = {'authorization': 'Bearer {}'.format(accessToken)}
-        result = requests.get('https://api.tidal.com/v1/sessions', headers=header, timeout=REQUEST_TIMEOUT).json()
+        result = self.session.get('https://api.tidal.com/v1/sessions', headers=header, timeout=REQUEST_TIMEOUT).json()
         if 'status' in result and result['status'] != 200:
             raise Exception("Login failed!")
 
@@ -290,7 +349,7 @@ class TidalAPI(object):
         mix = Mix()
         mix.id = id
         mix.tracks, mix.videos = self.getItems(id, Type.Mix)
-        return None, mix
+        return mix
 
     def getTypeData(self, id, type: Type):
         if type == Type.Album:
@@ -438,15 +497,22 @@ class TidalAPI(object):
         for item in formats:
             params.append(('formats', item))
 
-        response = requests.get(
-            f'https://openapi.tidal.com/v2/trackManifests/{str(id)}',
-            headers={
-                'authorization': f'Bearer {self.key.accessToken}',
-                'Accept': 'application/vnd.api+json',
-            },
-            params=params,
-            timeout=REQUEST_TIMEOUT,
-        )
+        response = None
+        for attempt in range(2):
+            response = self.session.get(
+                f'https://openapi.tidal.com/v2/trackManifests/{str(id)}',
+                headers={
+                    'authorization': f'Bearer {self.key.accessToken}',
+                    'Accept': 'application/vnd.api+json',
+                },
+                params=params,
+                timeout=REQUEST_TIMEOUT,
+            )
+            if response.status_code == 401 and attempt == 0 and self.__refreshSavedAccessToken__():
+                response.close()
+                continue
+            break
+
         if response.status_code != 200:
             raise self.__httpError__("Track manifest request", response)
 
@@ -711,7 +777,7 @@ class TidalAPI(object):
     def getCoverData(self, sid, width="320", height="320"):
         url = self.getCoverUrl(sid, width, height)
         try:
-            return requests.get(url, timeout=REQUEST_TIMEOUT).content
+            return self.session.get(url, timeout=REQUEST_TIMEOUT).content
         except:
             return ''
 

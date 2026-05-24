@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added video-only artist downloads in the terminal and desktop GUI.
+- Improved download reliability with resumable single-file downloads, safer final-file replacement, pooled HTTP sessions, token refresh retry on expired API calls, and reduced duplicate album/cover lookups.
 - Added a README GUI gallery with Search, Queue, Settings, and Account screenshots.
 - Added in-app update actions for the terminal workflow and desktop GUI.
 - Added `--paths`, `--open-output`, and a GUI download-folder open action for quicker access to files and config locations.

@@ -14,7 +14,7 @@ import os
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
+from threading import Lock, local
 
 import aigpy
 import requests
@@ -33,6 +33,19 @@ DOWNLOAD_CHUNK_SIZE = 256 * 1024
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 FAILED_TRACKS_FILE = "failed-tracks.txt"
 failed_track_log_lock = Lock()
+download_session_state = local()
+
+
+def __httpSession__():
+    session = getattr(download_session_state, "session", None)
+    if session is None:
+        session = requests.Session()
+        pool_size = max(TRACK_THREAD_COUNT, VIDEO_THREAD_COUNT) + 2
+        adapter = requests.adapters.HTTPAdapter(pool_connections=pool_size, pool_maxsize=pool_size)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        download_session_state.session = session
+    return session
 
 
 def __removeFile__(path):
@@ -117,7 +130,7 @@ def __httpRequest__(method, url, **kwargs):
     for attempt in range(DOWNLOAD_RETRIES):
         response = None
         try:
-            response = requests.request(method, url, timeout=DOWNLOAD_TIMEOUT, **kwargs)
+            response = __httpSession__().request(method, url, timeout=DOWNLOAD_TIMEOUT, **kwargs)
             if response.status_code in RETRYABLE_STATUS_CODES and attempt < DOWNLOAD_RETRIES - 1:
                 response.close()
                 time.sleep(__retryDelay__(response, attempt))
@@ -200,6 +213,59 @@ def __downloadUrlToPath__(url, path, progress=None, userProgress=None, progressL
         __removeFile__(tempPath)
 
 
+def __addExistingProgress__(progress, userProgress, size):
+    if size <= 0:
+        return
+    if progress is not None:
+        try:
+            progress.addCurCount(size)
+        except Exception:
+            pass
+    __addUserProgress__(userProgress, size)
+
+
+def __contentRangeStart__(response):
+    contentRange = response.headers.get("Content-Range", "")
+    if not contentRange.lower().startswith("bytes "):
+        return None
+    try:
+        return int(contentRange.split(" ", 1)[1].split("-", 1)[0])
+    except (IndexError, ValueError):
+        return None
+
+
+def __downloadSingleUrl__(url, outputPath, progress=None, userProgress=None, chunkSize=DOWNLOAD_CHUNK_SIZE):
+    tempOutputPath = outputPath + ".download"
+    resumeSize = aigpy.file.getSize(tempOutputPath)
+    headers = {}
+    if resumeSize > 0:
+        headers["Range"] = f"bytes={resumeSize}-"
+
+    response = __httpRequest__("GET", url, stream=True, allow_redirects=True, headers=headers)
+    try:
+        mode = "wb"
+        if resumeSize > 0 and response.status_code == 206 and __contentRangeStart__(response) == resumeSize:
+            mode = "ab"
+            __addExistingProgress__(progress, userProgress, resumeSize)
+        elif resumeSize > 0:
+            __removeFile__(tempOutputPath)
+            resumeSize = 0
+
+        with open(tempOutputPath, mode) as output:
+            for chunk in response.iter_content(chunk_size=chunkSize):
+                if not chunk:
+                    continue
+                output.write(chunk)
+                size = len(chunk)
+                if progress is not None:
+                    progress.addCurCount(size)
+                __addUserProgress__(userProgress, size)
+
+        os.replace(tempOutputPath, outputPath)
+    finally:
+        response.close()
+
+
 def __downloadUrls__(
         urls,
         outputPath,
@@ -213,7 +279,8 @@ def __downloadUrls__(
         return False, "URL list is empty."
 
     __ensureParentDir__(outputPath)
-    __removeFile__(outputPath)
+    tempOutputPath = f"{outputPath}.tmp.{os.getpid()}"
+    __removeFile__(tempOutputPath)
 
     totalSize = __remoteSize__(urls) if probeSize else -1
     progress = None
@@ -224,7 +291,11 @@ def __downloadUrls__(
 
     if len(urls) == 1 or threadNum <= 1:
         try:
-            with open(outputPath, "wb") as output:
+            if len(urls) == 1:
+                __downloadSingleUrl__(urls[0], outputPath, progress, userProgress, chunkSize)
+                return True, ''
+
+            with open(tempOutputPath, "wb") as output:
                 for url in urls:
                     response = __httpRequest__("GET", url, stream=True, allow_redirects=True)
                     try:
@@ -238,12 +309,13 @@ def __downloadUrls__(
                             __addUserProgress__(userProgress, size)
                     finally:
                         response.close()
+            os.replace(tempOutputPath, outputPath)
             return True, ''
         except Exception as e:
-            __removeFile__(outputPath)
+            __removeFile__(tempOutputPath)
             return False, str(e)
 
-    partsDir = outputPath + '.parts'
+    partsDir = tempOutputPath + '.parts'
     __removeDir__(partsDir)
     os.makedirs(partsDir, exist_ok=True)
     progressLock = Lock()
@@ -266,14 +338,15 @@ def __downloadUrls__(
             for future in as_completed(futures):
                 future.result()
 
-        with open(outputPath, "wb") as output:
+        with open(tempOutputPath, "wb") as output:
             for index in range(len(urls)):
                 partPath = os.path.join(partsDir, f"{index:08d}.part")
                 with open(partPath, "rb") as inputFile:
                     shutil.copyfileobj(inputFile, output)
+        os.replace(tempOutputPath, outputPath)
         return True, ''
     except Exception as e:
-        __removeFile__(outputPath)
+        __removeFile__(tempOutputPath)
         return False, str(e)
     finally:
         __removeDir__(partsDir)
@@ -725,11 +798,22 @@ def downloadTrack(track: Track, album=None, playlist=None, userProgress=None, pa
 
 
 def downloadTracks(tracks, album: Album = None, playlist: Playlist = None):
+    albumCache = {}
+    downloadedCovers = set()
+
     def __getAlbum__(item: Track):
-        album = TIDAL_API.getAlbum(item.album.id)
-        if SETTINGS.saveCovers and not SETTINGS.usePlaylistFolder:
-            downloadCover(album)
-        return album
+        albumId = getattr(getattr(item, 'album', None), 'id', None)
+        if albumId is None:
+            return None
+
+        if albumId not in albumCache:
+            albumCache[albumId] = TIDAL_API.getAlbum(albumId)
+
+        itemAlbum = albumCache[albumId]
+        if SETTINGS.saveCovers and not SETTINGS.usePlaylistFolder and albumId not in downloadedCovers:
+            downloadCover(itemAlbum)
+            downloadedCovers.add(albumId)
+        return itemAlbum
 
     if not SETTINGS.multiThread:
         success = True
