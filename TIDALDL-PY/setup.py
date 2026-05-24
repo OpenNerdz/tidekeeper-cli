@@ -37,7 +37,7 @@ setup(
         "Upstream": "https://github.com/yaronzz/Tidal-Media-Downloader",
     },
 
-    packages=find_packages(exclude=['tidal_gui*']),
+    packages=find_packages(),
     include_package_data=False,
     platforms="any",
     python_requires=">=3.8",
